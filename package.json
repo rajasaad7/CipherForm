@@ -1,0 +1,30 @@
+{
+  "name": "otp-verification-form",
+  "version": "1.0.0",
+  "description": "Embeddable contact form with SMS-based OTP verification using Brevo API",
+  "main": "index.html",
+  "scripts": {
+    "dev": "netlify dev",
+    "deploy": "netlify deploy --prod",
+    "build": "echo 'No build step required'",
+    "test": "echo 'No tests configured yet'"
+  },
+  "keywords": [
+    "otp",
+    "sms",
+    "verification",
+    "form",
+    "brevo",
+    "netlify",
+    "serverless",
+    "embeddable"
+  ],
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "netlify-cli": "^17.0.0"
+  },
+  "engines": {
+    "node": ">=14.0.0"
+  }
+}
