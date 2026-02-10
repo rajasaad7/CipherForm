@@ -1,10 +1,8 @@
-// Use shared file-based storage (works across Netlify Functions)
-const storage = require('./otp-storage');
+// Use stateless HMAC-based OTP storage
+const { createOTPToken, checkRateLimit } = require('./otp-storage');
 
 // Configuration
 const OTP_EXPIRY_MS = 5 * 60 * 1000; // 5 minutes
-const MAX_ATTEMPTS = 10; // Increased for testing
-const RATE_LIMIT_WINDOW_MS = 60 * 60 * 1000; // 1 hour
 
 /**
  * Generate a random 6-digit OTP
@@ -26,40 +24,6 @@ function isValidEmail(email) {
  */
 function normalizeEmail(email) {
   return email.trim().toLowerCase();
-}
-
-/**
- * Check rate limiting for an email address
- */
-async function checkRateLimit(email) {
-  const now = Date.now();
-  const attempts = (await storage.getAttempt(email)) || { count: 0, resetAt: now + RATE_LIMIT_WINDOW_MS };
-
-  // Reset if window expired
-  if (now > attempts.resetAt) {
-    attempts.count = 0;
-    attempts.resetAt = now + RATE_LIMIT_WINDOW_MS;
-  }
-
-  if (attempts.count >= MAX_ATTEMPTS) {
-    const minutesLeft = Math.ceil((attempts.resetAt - now) / 60000);
-    return {
-      allowed: false,
-      message: `Too many OTP requests. Please try again in ${minutesLeft} minute(s).`
-    };
-  }
-
-  return { allowed: true };
-}
-
-/**
- * Increment attempt counter
- */
-async function incrementAttempts(email) {
-  const now = Date.now();
-  const attempts = (await storage.getAttempt(email)) || { count: 0, resetAt: now + RATE_LIMIT_WINDOW_MS };
-  attempts.count++;
-  await storage.setAttempt(email, attempts);
 }
 
 /**
@@ -193,7 +157,7 @@ exports.handler = async (event) => {
     const normalizedEmail = normalizeEmail(email);
 
     // Check rate limiting
-    const rateLimitCheck = await checkRateLimit(normalizedEmail);
+    const rateLimitCheck = checkRateLimit(normalizedEmail);
     if (!rateLimitCheck.allowed) {
       return {
         statusCode: 429,
@@ -206,11 +170,8 @@ exports.handler = async (event) => {
     const otp = generateOTP();
     const expiresAt = Date.now() + OTP_EXPIRY_MS;
 
-    // Store OTP using shared storage
-    await storage.setOTP(normalizedEmail, { otp, expiresAt });
-
-    // Increment attempts
-    await incrementAttempts(normalizedEmail);
+    // Create signed token (stateless - no storage needed)
+    const token = createOTPToken(normalizedEmail, otp, expiresAt);
 
     // Send Email via Brevo
     try {
@@ -224,14 +185,12 @@ exports.handler = async (event) => {
         body: JSON.stringify({
           success: true,
           message: 'OTP sent to your email',
+          token: token, // Client must send this back for verification
           expiresIn: OTP_EXPIRY_MS / 1000 // seconds
         })
       };
     } catch (emailError) {
       console.error('Email sending error:', emailError);
-
-      // Clean up stored OTP if email fails
-      await storage.deleteOTP(normalizedEmail);
 
       return {
         statusCode: 500,

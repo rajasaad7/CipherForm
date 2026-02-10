@@ -26,8 +26,5 @@
   },
   "engines": {
     "node": ">=14.0.0"
-  },
-  "dependencies": {
-    "@netlify/blobs": "^10.6.0"
   }
 }

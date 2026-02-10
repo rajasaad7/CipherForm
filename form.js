@@ -2,7 +2,8 @@
 const state = {
     emailVerified: false,
     otpTimerInterval: null,
-    otpExpiryTime: null
+    otpExpiryTime: null,
+    otpToken: null // Stores the verification token from server
 };
 
 // API Configuration
@@ -127,6 +128,9 @@ sendOtpBtn.addEventListener('click', async () => {
 
         console.log('OTP sent successfully:', data);
 
+        // Store verification token
+        state.otpToken = data.token;
+
         // Show OTP verification field
         otpVerificationRow.style.display = 'flex';
 
@@ -218,11 +222,18 @@ verifyOtpBtn.addEventListener('click', async () => {
 
     setButtonLoading(verifyOtpBtn, true);
 
+    if (!state.otpToken) {
+        verificationStatus.textContent = '✗ No verification token. Please request a new OTP.';
+        verificationStatus.className = 'verification-status error';
+        setButtonLoading(verifyOtpBtn, false);
+        return;
+    }
+
     try {
         const response = await fetch(`${API_BASE}/verify-otp`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ email, otp })
+            body: JSON.stringify({ email, otp, token: state.otpToken })
         });
 
         const data = await response.json();
@@ -352,6 +363,7 @@ submitAnotherBtn.addEventListener('click', () => {
 
     // Reset state
     state.emailVerified = false;
+    state.otpToken = null;
     if (state.otpTimerInterval) {
         clearInterval(state.otpTimerInterval);
     }

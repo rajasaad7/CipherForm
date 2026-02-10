@@ -1,82 +1,84 @@
-// Shared OTP storage using Netlify Blobs (works across Netlify Functions)
-const { getStore } = require('@netlify/blobs');
+// Stateless OTP verification using HMAC signatures
+// No external storage needed - all data is cryptographically signed
+const crypto = require('crypto');
 
-// Normalize email to use as key
-function normalizeEmail(email) {
-  return email.trim().toLowerCase();
+// Get signing secret from environment or generate one
+const SECRET = process.env.OTP_SECRET || 'default-secret-change-in-production';
+
+/**
+ * Create a signed token containing OTP data
+ */
+function createOTPToken(email, otp, expiresAt) {
+  const data = JSON.stringify({ email, otp, expiresAt });
+  const signature = crypto
+    .createHmac('sha256', SECRET)
+    .update(data)
+    .digest('hex');
+
+  return Buffer.from(JSON.stringify({ data, signature })).toString('base64');
 }
 
-// Get the OTP store - Netlify auto-detects environment
-function getOTPStore() {
-  return getStore('otp-verification');
-}
-
-// Get the attempts store - Netlify auto-detects environment
-function getAttemptsStore() {
-  return getStore('otp-attempts');
-}
-
-// Store OTP
-async function setOTP(email, data) {
-  const store = getOTPStore();
-  const key = normalizeEmail(email);
-  await store.set(key, JSON.stringify(data));
-}
-
-// Get OTP
-async function getOTP(email) {
-  const store = getOTPStore();
-  const key = normalizeEmail(email);
-  const data = await store.get(key);
-
-  if (!data) {
-    return null;
-  }
-
+/**
+ * Verify and extract OTP data from token
+ */
+function verifyOTPToken(token) {
   try {
-    return JSON.parse(data);
+    const decoded = JSON.parse(Buffer.from(token, 'base64').toString());
+    const { data, signature } = decoded;
+
+    // Verify signature
+    const expectedSignature = crypto
+      .createHmac('sha256', SECRET)
+      .update(data)
+      .digest('hex');
+
+    if (signature !== expectedSignature) {
+      return { valid: false, error: 'Invalid signature' };
+    }
+
+    // Parse and return data
+    const otpData = JSON.parse(data);
+    return { valid: true, data: otpData };
   } catch (error) {
-    console.error('Error parsing OTP:', error);
-    return null;
+    return { valid: false, error: 'Invalid token' };
   }
 }
 
-// Delete OTP
-async function deleteOTP(email) {
-  const store = getOTPStore();
-  const key = normalizeEmail(email);
-  await store.delete(key);
-}
+// In-memory rate limiting (resets when function cold-starts, which is fine)
+const rateLimitStore = new Map();
 
-// Store attempt
-async function setAttempt(email, data) {
-  const store = getAttemptsStore();
-  const key = normalizeEmail(email);
-  await store.set(key, JSON.stringify(data));
-}
+function checkRateLimit(email) {
+  const now = Date.now();
+  const key = email.toLowerCase().trim();
+  const record = rateLimitStore.get(key);
 
-// Get attempt
-async function getAttempt(email) {
-  const store = getAttemptsStore();
-  const key = normalizeEmail(email);
-  const data = await store.get(key);
-
-  if (!data) {
-    return null;
+  if (!record) {
+    rateLimitStore.set(key, { count: 1, resetAt: now + 3600000 });
+    return { allowed: true };
   }
 
-  try {
-    return JSON.parse(data);
-  } catch (error) {
-    console.error('Error parsing attempt:', error);
-    return null;
+  // Reset if window expired
+  if (now > record.resetAt) {
+    rateLimitStore.set(key, { count: 1, resetAt: now + 3600000 });
+    return { allowed: true };
   }
+
+  // Check limit
+  if (record.count >= 10) {
+    const minutesLeft = Math.ceil((record.resetAt - now) / 60000);
+    return {
+      allowed: false,
+      message: `Too many OTP requests. Please try again in ${minutesLeft} minute(s).`
+    };
+  }
+
+  // Increment counter
+  record.count++;
+  return { allowed: true };
 }
 
 module.exports = {
-  setOTP,
-  getOTP,
-  deleteOTP,
-  setAttempt,
-  getAttempt
+  createOTPToken,
+  verifyOTPToken,
+  checkRateLimit
 };

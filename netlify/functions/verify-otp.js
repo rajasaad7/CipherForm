@@ -1,5 +1,5 @@
-// Use shared file-based storage (works across Netlify Functions)
-const storage = require('./otp-storage');
+// Use stateless HMAC-based OTP verification
+const { verifyOTPToken } = require('./otp-storage');
 
 /**
  * Normalize email (lowercase and trim)
@@ -9,22 +9,33 @@ function normalizeEmail(email) {
 }
 
 /**
- * Verify OTP for an email address
+ * Verify OTP using signed token
  */
-async function verifyOTP(email, inputOTP) {
+function verifyOTP(email, inputOTP, token) {
   const normalizedEmail = normalizeEmail(email);
-  const stored = await storage.getOTP(normalizedEmail);
 
-  if (!stored) {
+  // Verify token signature
+  const tokenResult = verifyOTPToken(token);
+
+  if (!tokenResult.valid) {
     return {
       valid: false,
-      message: 'No OTP found. Please request a new OTP.'
+      message: 'Invalid or tampered verification token. Please request a new OTP.'
+    };
+  }
+
+  const { email: tokenEmail, otp: tokenOTP, expiresAt } = tokenResult.data;
+
+  // Check email matches
+  if (normalizeEmail(tokenEmail) !== normalizedEmail) {
+    return {
+      valid: false,
+      message: 'Email mismatch. Please use the same email you requested OTP for.'
     };
   }
 
   // Check expiry
-  if (Date.now() > stored.expiresAt) {
-    await storage.deleteOTP(normalizedEmail);
+  if (Date.now() > expiresAt) {
     return {
       valid: false,
       message: 'OTP has expired. Please request a new OTP.'
@@ -32,15 +43,12 @@ async function verifyOTP(email, inputOTP) {
   }
 
   // Check OTP match
-  if (stored.otp !== inputOTP) {
+  if (tokenOTP !== inputOTP) {
     return {
       valid: false,
       message: 'Invalid OTP. Please check and try again.'
     };
   }
-
-  // OTP is valid - clean up
-  await storage.deleteOTP(normalizedEmail);
 
   return {
     valid: true,
@@ -75,15 +83,15 @@ exports.handler = async (event) => {
   }
 
   try {
-    const { email, otp } = JSON.parse(event.body);
+    const { email, otp, token } = JSON.parse(event.body);
 
     // Validate input
-    if (!email || !otp) {
+    if (!email || !otp || !token) {
       return {
         statusCode: 400,
         headers,
         body: JSON.stringify({
-          error: 'Email and OTP are required'
+          error: 'Email, OTP, and verification token are required'
         })
       };
     }
@@ -99,8 +107,8 @@ exports.handler = async (event) => {
       };
     }
 
-    // Verify OTP
-    const result = await verifyOTP(email, otp);
+    // Verify OTP using token
+    const result = verifyOTP(email, otp, token);
 
     if (!result.valid) {
       return {
