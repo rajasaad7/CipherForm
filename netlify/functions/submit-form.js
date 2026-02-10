@@ -100,7 +100,7 @@ async function sendToHubSpot(data) {
   // Method 2: HubSpot Contacts API (Alternative method)
   if (hubspotAccessToken) {
     try {
-      const contactsUrl = 'https://api.eu1.hubapi.com/crm/v3/objects/contacts';
+      const contactsUrl = 'https://api.hubapi.com/crm/v3/objects/contacts';
 
       const payload = {
         properties: {
