@@ -333,7 +333,7 @@ form.addEventListener('submit', async (e) => {
         console.log('Form submitted successfully:', result);
 
         // Redirect to success page
-        window.location.href = 'https://www.cipherbc.com/card/contact-success';
+        window.location.href = 'https://www.cipherbc.com/cards/contact-success';
 
     } catch (error) {
         console.error('Submit form error:', error);
