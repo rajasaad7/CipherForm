@@ -93,11 +93,15 @@ async function sendToHubSpot(data) {
 
     } catch (error) {
       console.error('HubSpot Forms API error:', error);
-      return { success: false, error: error.message };
+      // Don't return here - fall through to try Contacts API if available
+      if (!hubspotAccessToken) {
+        return { success: false, error: error.message };
+      }
+      console.log('Falling back to Contacts API...');
     }
   }
 
-  // Method 2: HubSpot Contacts API (Alternative method)
+  // Method 2: HubSpot Contacts API (Alternative method / Fallback)
   if (hubspotAccessToken) {
     try {
       const contactsUrl = 'https://api.hubapi.com/crm/v3/objects/contacts';
