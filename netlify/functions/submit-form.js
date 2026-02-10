@@ -46,7 +46,7 @@ async function sendToHubSpot(data) {
   // Method 1: HubSpot Forms API (Recommended for simplicity)
   if (hubspotPortalId && hubspotFormGuid) {
     try {
-      const formUrl = `https://api.eu1.hsforms.com/submissions/v3/integration/submit/${hubspotPortalId}/${hubspotFormGuid}`;
+      const formUrl = `https://api.hsforms.com/submissions/v3/integration/submit/${hubspotPortalId}/${hubspotFormGuid}`;
 
       const payload = {
         fields: [
