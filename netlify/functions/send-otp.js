@@ -31,9 +31,9 @@ function normalizeEmail(email) {
 /**
  * Check rate limiting for an email address
  */
-async function checkRateLimit(email) {
+async function checkRateLimit(email, context) {
   const now = Date.now();
-  const attempts = (await storage.getAttempt(email)) || { count: 0, resetAt: now + RATE_LIMIT_WINDOW_MS };
+  const attempts = (await storage.getAttempt(email, context)) || { count: 0, resetAt: now + RATE_LIMIT_WINDOW_MS };
 
   // Reset if window expired
   if (now > attempts.resetAt) {
@@ -55,11 +55,11 @@ async function checkRateLimit(email) {
 /**
  * Increment attempt counter
  */
-async function incrementAttempts(email) {
+async function incrementAttempts(email, context) {
   const now = Date.now();
-  const attempts = (await storage.getAttempt(email)) || { count: 0, resetAt: now + RATE_LIMIT_WINDOW_MS };
+  const attempts = (await storage.getAttempt(email, context)) || { count: 0, resetAt: now + RATE_LIMIT_WINDOW_MS };
   attempts.count++;
-  await storage.setAttempt(email, attempts);
+  await storage.setAttempt(email, attempts, context);
 }
 
 /**
@@ -153,7 +153,7 @@ async function sendEmail(email, otp) {
 /**
  * Netlify Function Handler
  */
-exports.handler = async (event) => {
+exports.handler = async (event, context) => {
   // CORS headers
   const headers = {
     'Access-Control-Allow-Origin': '*',
@@ -193,7 +193,7 @@ exports.handler = async (event) => {
     const normalizedEmail = normalizeEmail(email);
 
     // Check rate limiting
-    const rateLimitCheck = await checkRateLimit(normalizedEmail);
+    const rateLimitCheck = await checkRateLimit(normalizedEmail, context);
     if (!rateLimitCheck.allowed) {
       return {
         statusCode: 429,
@@ -207,10 +207,10 @@ exports.handler = async (event) => {
     const expiresAt = Date.now() + OTP_EXPIRY_MS;
 
     // Store OTP using shared storage
-    await storage.setOTP(normalizedEmail, { otp, expiresAt });
+    await storage.setOTP(normalizedEmail, { otp, expiresAt }, context);
 
     // Increment attempts
-    await incrementAttempts(normalizedEmail);
+    await incrementAttempts(normalizedEmail, context);
 
     // Send Email via Brevo
     try {
@@ -231,7 +231,7 @@ exports.handler = async (event) => {
       console.error('Email sending error:', emailError);
 
       // Clean up stored OTP if email fails
-      await storage.deleteOTP(normalizedEmail);
+      await storage.deleteOTP(normalizedEmail, context);
 
       return {
         statusCode: 500,

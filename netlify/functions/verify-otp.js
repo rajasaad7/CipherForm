@@ -11,9 +11,9 @@ function normalizeEmail(email) {
 /**
  * Verify OTP for an email address
  */
-async function verifyOTP(email, inputOTP) {
+async function verifyOTP(email, inputOTP, context) {
   const normalizedEmail = normalizeEmail(email);
-  const stored = await storage.getOTP(normalizedEmail);
+  const stored = await storage.getOTP(normalizedEmail, context);
 
   if (!stored) {
     return {
@@ -24,7 +24,7 @@ async function verifyOTP(email, inputOTP) {
 
   // Check expiry
   if (Date.now() > stored.expiresAt) {
-    await storage.deleteOTP(normalizedEmail);
+    await storage.deleteOTP(normalizedEmail, context);
     return {
       valid: false,
       message: 'OTP has expired. Please request a new OTP.'
@@ -40,7 +40,7 @@ async function verifyOTP(email, inputOTP) {
   }
 
   // OTP is valid - clean up
-  await storage.deleteOTP(normalizedEmail);
+  await storage.deleteOTP(normalizedEmail, context);
 
   return {
     valid: true,
@@ -51,7 +51,7 @@ async function verifyOTP(email, inputOTP) {
 /**
  * Netlify Function Handler
  */
-exports.handler = async (event) => {
+exports.handler = async (event, context) => {
   // CORS headers
   const headers = {
     'Access-Control-Allow-Origin': '*',
@@ -100,7 +100,7 @@ exports.handler = async (event) => {
     }
 
     // Verify OTP
-    const result = await verifyOTP(email, otp);
+    const result = await verifyOTP(email, otp, context);
 
     if (!result.valid) {
       return {

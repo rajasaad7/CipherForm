@@ -6,26 +6,34 @@ function normalizeEmail(email) {
   return email.trim().toLowerCase();
 }
 
-// Get the OTP store
-function getOTPStore() {
-  return getStore('otp-verification');
+// Get the OTP store with context
+function getOTPStore(context) {
+  return getStore({
+    name: 'otp-verification',
+    siteID: context.site?.id,
+    token: context.token
+  });
 }
 
-// Get the attempts store
-function getAttemptsStore() {
-  return getStore('otp-attempts');
+// Get the attempts store with context
+function getAttemptsStore(context) {
+  return getStore({
+    name: 'otp-attempts',
+    siteID: context.site?.id,
+    token: context.token
+  });
 }
 
 // Store OTP
-async function setOTP(email, data) {
-  const store = getOTPStore();
+async function setOTP(email, data, context) {
+  const store = getOTPStore(context);
   const key = normalizeEmail(email);
   await store.set(key, JSON.stringify(data));
 }
 
 // Get OTP
-async function getOTP(email) {
-  const store = getOTPStore();
+async function getOTP(email, context) {
+  const store = getOTPStore(context);
   const key = normalizeEmail(email);
   const data = await store.get(key);
 
@@ -42,22 +50,22 @@ async function getOTP(email) {
 }
 
 // Delete OTP
-async function deleteOTP(email) {
-  const store = getOTPStore();
+async function deleteOTP(email, context) {
+  const store = getOTPStore(context);
   const key = normalizeEmail(email);
   await store.delete(key);
 }
 
 // Store attempt
-async function setAttempt(email, data) {
-  const store = getAttemptsStore();
+async function setAttempt(email, data, context) {
+  const store = getAttemptsStore(context);
   const key = normalizeEmail(email);
   await store.set(key, JSON.stringify(data));
 }
 
 // Get attempt
-async function getAttempt(email) {
-  const store = getAttemptsStore();
+async function getAttempt(email, context) {
+  const store = getAttemptsStore(context);
   const key = normalizeEmail(email);
   const data = await store.get(key);
 
