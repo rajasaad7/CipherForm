@@ -41,22 +41,6 @@ body {
     padding: 0;
 }
 
-.form-header {
-    margin-bottom: 30px;
-}
-
-.form-header h1 {
-    font-size: 28px;
-    font-weight: 600;
-    color: var(--text-color);
-    margin-bottom: 8px;
-}
-
-.form-header p {
-    font-size: 15px;
-    color: var(--text-secondary);
-}
-
 /* ===== Form Layout ===== */
 .form-row {
     display: flex;
@@ -73,9 +57,6 @@ body {
     flex: 1 1 100%;
 }
 
-.form-group.phone-group {
-    flex: 1 1 100%;
-}
 
 /* ===== Labels ===== */
 label {
@@ -115,6 +96,11 @@ textarea:focus {
     outline: none;
     border-color: var(--primary-color);
     background: var(--white);
+}
+
+input[readonly] {
+    background: #f3f4f6;
+    cursor: not-allowed;
 }
 
 textarea {
@@ -208,20 +194,6 @@ textarea {
     margin-top: 6px;
     font-size: 13px;
     color: var(--text-secondary);
-}
-
-/* ===== Phone Input ===== */
-.phone-input-wrapper {
-    display: flex;
-    gap: 10px;
-}
-
-.phone-input-wrapper select {
-    flex: 0 0 280px;
-}
-
-.phone-input-wrapper input {
-    flex: 1;
 }
 
 /* ===== Checkboxes ===== */
@@ -391,14 +363,6 @@ textarea {
 
     .btn-send-otp {
         width: 100%;
-    }
-
-    .phone-input-wrapper {
-        flex-direction: column;
-    }
-
-    .phone-input-wrapper select {
-        flex: 1;
     }
 
     .otp-verification-wrapper {

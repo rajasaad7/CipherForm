@@ -23,6 +23,7 @@ const submitBtn = document.getElementById('submitBtn');
 const formError = document.getElementById('formError');
 const successMessage = document.getElementById('successMessage');
 const submitAnotherBtn = document.getElementById('submitAnotherBtn');
+const phoneNumberInput = document.getElementById('phoneNumber');
 
 /**
  * Show error message
@@ -132,8 +133,9 @@ sendOtpBtn.addEventListener('click', async () => {
         // Start timer
         startOtpTimer(data.expiresIn || 300);
 
-        // Disable email input and send button temporarily
-        workEmailInput.disabled = true;
+        // Make email input readonly (not disabled, so FormData still includes it)
+        workEmailInput.readOnly = true;
+        workEmailInput.style.background = '#f3f4f6';
         sendOtpBtn.textContent = 'OTP Sent ✓';
         sendOtpBtn.style.background = '#10b981';
 
@@ -161,6 +163,43 @@ sendOtpBtn.addEventListener('click', async () => {
  */
 otpCodeInput.addEventListener('input', (e) => {
     e.target.value = e.target.value.replace(/\D/g, '');
+});
+
+/**
+ * Handle phone number input - ensure it starts with +
+ */
+phoneNumberInput.addEventListener('input', (e) => {
+    let value = e.target.value;
+
+    // If user is typing and doesn't have +, add it
+    if (value && !value.startsWith('+')) {
+        e.target.value = '+' + value.replace(/[^\d]/g, '');
+    }
+});
+
+phoneNumberInput.addEventListener('keydown', (e) => {
+    // Allow: backspace, delete, tab, escape, enter
+    if ([8, 9, 27, 13, 46].indexOf(e.keyCode) !== -1 ||
+        // Allow: Ctrl+A, Ctrl+C, Ctrl+V, Ctrl+X
+        (e.keyCode === 65 && e.ctrlKey === true) ||
+        (e.keyCode === 67 && e.ctrlKey === true) ||
+        (e.keyCode === 86 && e.ctrlKey === true) ||
+        (e.keyCode === 88 && e.ctrlKey === true) ||
+        // Allow: home, end, left, right
+        (e.keyCode >= 35 && e.keyCode <= 39)) {
+        return;
+    }
+
+    // Ensure that it's a number or + at the beginning
+    const value = e.target.value;
+    if (value === '' && e.key === '+') {
+        return; // Allow + at the beginning
+    }
+
+    // After +, only allow digits
+    if ((e.key < '0' || e.key > '9') && e.key !== '+') {
+        e.preventDefault();
+    }
 });
 
 /**
@@ -252,7 +291,7 @@ form.addEventListener('submit', async (e) => {
         lastName: formData.get('lastName'),
         companyName: formData.get('companyName'),
         email: formData.get('workEmail'),
-        phone: formData.get('countryCode') + formData.get('phoneNumber'),
+        phone: formData.get('phoneNumber'),
         linkedinUrl: formData.get('linkedinUrl'),
         telegram: formData.get('telegram'),
         productInterest: productInterest,
@@ -265,8 +304,14 @@ form.addEventListener('submit', async (e) => {
         return;
     }
 
-    if (!data.phone || data.phone.length < 8) {
-        showError('Please enter a valid phone number');
+    // Validate phone number format
+    if (!data.phone || !data.phone.startsWith('+')) {
+        showError('Phone number must start with + followed by country code (e.g., +971501234567)');
+        return;
+    }
+
+    if (data.phone.length < 10) {
+        showError('Please enter a valid phone number with country code');
         return;
     }
 
@@ -287,9 +332,8 @@ form.addEventListener('submit', async (e) => {
 
         console.log('Form submitted successfully:', result);
 
-        // Hide form and show success message
-        form.style.display = 'none';
-        successMessage.style.display = 'block';
+        // Redirect to success page
+        window.location.href = 'https://www.cipherbc.com/card/contact-success';
 
     } catch (error) {
         console.error('Submit form error:', error);
@@ -313,7 +357,8 @@ submitAnotherBtn.addEventListener('click', () => {
     }
 
     // Reset UI
-    workEmailInput.disabled = false;
+    workEmailInput.readOnly = false;
+    workEmailInput.style.background = '';
     otpCodeInput.disabled = false;
     verifyOtpBtn.disabled = false;
     submitBtn.disabled = true;

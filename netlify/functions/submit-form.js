@@ -20,8 +20,10 @@ function validateFormData(data) {
     errors.push('Valid email address is required');
   }
 
-  if (!data.phone || data.phone.trim().length < 5) {
-    errors.push('Valid phone number is required');
+  if (!data.phone || !data.phone.trim().startsWith('+')) {
+    errors.push('Phone number must start with + and include country code');
+  } else if (data.phone.trim().length < 10) {
+    errors.push('Valid phone number with country code is required');
   }
 
   return {
@@ -217,15 +219,18 @@ exports.handler = async (event) => {
   try {
     const formData = JSON.parse(event.body);
 
+    console.log('Received form data:', formData);
+
     // Validate form data
     const validation = validateFormData(formData);
 
     if (!validation.valid) {
+      console.error('Validation failed:', validation.errors);
       return {
         statusCode: 400,
         headers,
         body: JSON.stringify({
-          error: 'Validation failed',
+          error: 'Validation failed: ' + validation.errors.join(', '),
           errors: validation.errors
         })
       };

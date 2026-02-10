@@ -3,7 +3,7 @@ const storage = require('./otp-storage');
 
 // Configuration
 const OTP_EXPIRY_MS = 5 * 60 * 1000; // 5 minutes
-const MAX_ATTEMPTS = 3;
+const MAX_ATTEMPTS = 10; // Increased for testing
 const RATE_LIMIT_WINDOW_MS = 60 * 60 * 1000; // 1 hour
 
 /**
