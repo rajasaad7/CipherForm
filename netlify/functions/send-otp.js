@@ -31,9 +31,9 @@ function normalizeEmail(email) {
 /**
  * Check rate limiting for an email address
  */
-function checkRateLimit(email) {
+async function checkRateLimit(email) {
   const now = Date.now();
-  const attempts = storage.getAttempt(email) || { count: 0, resetAt: now + RATE_LIMIT_WINDOW_MS };
+  const attempts = (await storage.getAttempt(email)) || { count: 0, resetAt: now + RATE_LIMIT_WINDOW_MS };
 
   // Reset if window expired
   if (now > attempts.resetAt) {
@@ -55,11 +55,11 @@ function checkRateLimit(email) {
 /**
  * Increment attempt counter
  */
-function incrementAttempts(email) {
+async function incrementAttempts(email) {
   const now = Date.now();
-  const attempts = storage.getAttempt(email) || { count: 0, resetAt: now + RATE_LIMIT_WINDOW_MS };
+  const attempts = (await storage.getAttempt(email)) || { count: 0, resetAt: now + RATE_LIMIT_WINDOW_MS };
   attempts.count++;
-  storage.setAttempt(email, attempts);
+  await storage.setAttempt(email, attempts);
 }
 
 /**
@@ -193,7 +193,7 @@ exports.handler = async (event) => {
     const normalizedEmail = normalizeEmail(email);
 
     // Check rate limiting
-    const rateLimitCheck = checkRateLimit(normalizedEmail);
+    const rateLimitCheck = await checkRateLimit(normalizedEmail);
     if (!rateLimitCheck.allowed) {
       return {
         statusCode: 429,
@@ -207,10 +207,10 @@ exports.handler = async (event) => {
     const expiresAt = Date.now() + OTP_EXPIRY_MS;
 
     // Store OTP using shared storage
-    storage.setOTP(normalizedEmail, { otp, expiresAt });
+    await storage.setOTP(normalizedEmail, { otp, expiresAt });
 
     // Increment attempts
-    incrementAttempts(normalizedEmail);
+    await incrementAttempts(normalizedEmail);
 
     // Send Email via Brevo
     try {
@@ -231,7 +231,7 @@ exports.handler = async (event) => {
       console.error('Email sending error:', emailError);
 
       // Clean up stored OTP if email fails
-      storage.deleteOTP(normalizedEmail);
+      await storage.deleteOTP(normalizedEmail);
 
       return {
         statusCode: 500,

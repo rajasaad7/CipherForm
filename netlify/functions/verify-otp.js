@@ -11,9 +11,9 @@ function normalizeEmail(email) {
 /**
  * Verify OTP for an email address
  */
-function verifyOTP(email, inputOTP) {
+async function verifyOTP(email, inputOTP) {
   const normalizedEmail = normalizeEmail(email);
-  const stored = storage.getOTP(normalizedEmail);
+  const stored = await storage.getOTP(normalizedEmail);
 
   if (!stored) {
     return {
@@ -24,7 +24,7 @@ function verifyOTP(email, inputOTP) {
 
   // Check expiry
   if (Date.now() > stored.expiresAt) {
-    storage.deleteOTP(normalizedEmail);
+    await storage.deleteOTP(normalizedEmail);
     return {
       valid: false,
       message: 'OTP has expired. Please request a new OTP.'
@@ -40,7 +40,7 @@ function verifyOTP(email, inputOTP) {
   }
 
   // OTP is valid - clean up
-  storage.deleteOTP(normalizedEmail);
+  await storage.deleteOTP(normalizedEmail);
 
   return {
     valid: true,
@@ -100,7 +100,7 @@ exports.handler = async (event) => {
     }
 
     // Verify OTP
-    const result = verifyOTP(email, otp);
+    const result = await verifyOTP(email, otp);
 
     if (!result.valid) {
       return {

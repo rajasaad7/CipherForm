@@ -1,81 +1,74 @@
-// Shared OTP storage using filesystem (works across Netlify Functions)
-const fs = require('fs');
-const path = require('path');
+// Shared OTP storage using Netlify Blobs (works across Netlify Functions)
+const { getStore } = require('@netlify/blobs');
 
-const STORAGE_DIR = '/tmp/otp-storage';
-const ATTEMPTS_DIR = '/tmp/otp-attempts';
-
-// Ensure storage directories exist
-function ensureDirectories() {
-  if (!fs.existsSync(STORAGE_DIR)) {
-    fs.mkdirSync(STORAGE_DIR, { recursive: true });
-  }
-  if (!fs.existsSync(ATTEMPTS_DIR)) {
-    fs.mkdirSync(ATTEMPTS_DIR, { recursive: true });
-  }
+// Normalize email to use as key
+function normalizeEmail(email) {
+  return email.trim().toLowerCase();
 }
 
-// Normalize email to use as filename
-function normalizeEmail(email) {
-  return email.trim().toLowerCase().replace(/[^a-z0-9]/g, '_');
+// Get the OTP store
+function getOTPStore() {
+  return getStore('otp-verification');
+}
+
+// Get the attempts store
+function getAttemptsStore() {
+  return getStore('otp-attempts');
 }
 
 // Store OTP
-function setOTP(email, data) {
-  ensureDirectories();
-  const filename = path.join(STORAGE_DIR, `${normalizeEmail(email)}.json`);
-  fs.writeFileSync(filename, JSON.stringify(data));
+async function setOTP(email, data) {
+  const store = getOTPStore();
+  const key = normalizeEmail(email);
+  await store.set(key, JSON.stringify(data));
 }
 
 // Get OTP
-function getOTP(email) {
-  ensureDirectories();
-  const filename = path.join(STORAGE_DIR, `${normalizeEmail(email)}.json`);
+async function getOTP(email) {
+  const store = getOTPStore();
+  const key = normalizeEmail(email);
+  const data = await store.get(key);
 
-  if (!fs.existsSync(filename)) {
+  if (!data) {
     return null;
   }
 
   try {
-    const data = JSON.parse(fs.readFileSync(filename, 'utf8'));
-    return data;
+    return JSON.parse(data);
   } catch (error) {
-    console.error('Error reading OTP:', error);
+    console.error('Error parsing OTP:', error);
     return null;
   }
 }
 
 // Delete OTP
-function deleteOTP(email) {
-  ensureDirectories();
-  const filename = path.join(STORAGE_DIR, `${normalizeEmail(email)}.json`);
-
-  if (fs.existsSync(filename)) {
-    fs.unlinkSync(filename);
-  }
+async function deleteOTP(email) {
+  const store = getOTPStore();
+  const key = normalizeEmail(email);
+  await store.delete(key);
 }
 
 // Store attempt
-function setAttempt(email, data) {
-  ensureDirectories();
-  const filename = path.join(ATTEMPTS_DIR, `${normalizeEmail(email)}.json`);
-  fs.writeFileSync(filename, JSON.stringify(data));
+async function setAttempt(email, data) {
+  const store = getAttemptsStore();
+  const key = normalizeEmail(email);
+  await store.set(key, JSON.stringify(data));
 }
 
 // Get attempt
-function getAttempt(email) {
-  ensureDirectories();
-  const filename = path.join(ATTEMPTS_DIR, `${normalizeEmail(email)}.json`);
+async function getAttempt(email) {
+  const store = getAttemptsStore();
+  const key = normalizeEmail(email);
+  const data = await store.get(key);
 
-  if (!fs.existsSync(filename)) {
+  if (!data) {
     return null;
   }
 
   try {
-    const data = JSON.parse(fs.readFileSync(filename, 'utf8'));
-    return data;
+    return JSON.parse(data);
   } catch (error) {
-    console.error('Error reading attempt:', error);
+    console.error('Error parsing attempt:', error);
     return null;
   }
 }
