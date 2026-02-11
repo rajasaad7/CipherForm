@@ -103,6 +103,9 @@ function startOtpTimer(expiryTimeSeconds = 300) {
 
     state.otpExpiryTime = Date.now() + (expiryTimeSeconds * 1000);
 
+    // Disable send OTP button during timer
+    sendOtpBtn.disabled = true;
+
     state.otpTimerInterval = setInterval(() => {
         const remainingMs = state.otpExpiryTime - Date.now();
 
@@ -112,6 +115,7 @@ function startOtpTimer(expiryTimeSeconds = 300) {
             otpTimer.style.color = '#ef4444';
             sendOtpBtn.textContent = 'Resend OTP';
             sendOtpBtn.disabled = false;
+            sendOtpBtn.style.background = '';
             return;
         }
 
