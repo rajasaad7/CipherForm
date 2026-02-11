@@ -7,6 +7,14 @@ function isValidEmail(email) {
 }
 
 /**
+ * Validate LinkedIn URL format
+ */
+function isValidLinkedInUrl(url) {
+  const linkedinRegex = /^(https?:\/\/)?(www\.)?linkedin\.com\/(in|company)\/[\w\-]+\/?$/i;
+  return linkedinRegex.test(url);
+}
+
+/**
  * Validate form data
  */
 function validateFormData(data) {
@@ -26,6 +34,13 @@ function validateFormData(data) {
     errors.push('Invalid country code. Country codes cannot start with 0');
   } else if (data.phone.trim().length < 10) {
     errors.push('Valid phone number with country code is required');
+  }
+
+  // Validate LinkedIn URL if provided
+  if (data.linkedinUrl && data.linkedinUrl.trim().length > 0) {
+    if (!isValidLinkedInUrl(data.linkedinUrl.trim())) {
+      errors.push('Please enter a valid LinkedIn profile URL (e.g., https://linkedin.com/in/yourprofile)');
+    }
   }
 
   return {

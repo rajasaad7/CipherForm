@@ -364,6 +364,15 @@ form.addEventListener('submit', async (e) => {
         return;
     }
 
+    // Validate LinkedIn URL if provided
+    if (data.linkedinUrl && data.linkedinUrl.trim().length > 0) {
+        const linkedinRegex = /^(https?:\/\/)?(www\.)?linkedin\.com\/(in|company)\/[\w\-]+\/?$/i;
+        if (!linkedinRegex.test(data.linkedinUrl.trim())) {
+            showError('Please enter a valid LinkedIn profile URL (e.g., https://linkedin.com/in/yourprofile)');
+            return;
+        }
+    }
+
     setButtonLoading(submitBtn, true);
 
     try {
@@ -381,8 +390,19 @@ form.addEventListener('submit', async (e) => {
 
         console.log('Form submitted successfully:', result);
 
+        // Determine redirect URL based on page URL
+        let redirectUrl = 'https://www.cipherbc.com/cards/contact-success'; // Default
+
+        const pageUrl = data.page_url || window.location.href;
+
+        if (pageUrl.includes('/custody/')) {
+            redirectUrl = 'https://www.cipherbc.com/custody/contact-success';
+        } else if (pageUrl.includes('/cards/')) {
+            redirectUrl = 'https://www.cipherbc.com/cards/contact-success';
+        }
+
         // Redirect to success page
-        window.location.href = 'https://www.cipherbc.com/cards/contact-success';
+        window.location.href = redirectUrl;
 
     } catch (error) {
         console.error('Submit form error:', error);
