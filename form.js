@@ -172,10 +172,13 @@ sendOtpBtn.addEventListener('click', async () => {
         // Store verification token
         state.otpToken = data.token;
 
+        // Disable send button immediately to prevent multiple clicks
+        sendOtpBtn.disabled = true;
+
         // Show OTP verification field
         otpVerificationRow.style.display = 'flex';
 
-        // Start timer
+        // Start timer (will keep button disabled)
         startOtpTimer(data.expiresIn || 300);
 
         // Make email input readonly (not disabled, so FormData still includes it)
