@@ -1,6 +1,6 @@
 /**
  * CipherBC Contact Form - Embed Script
- * Usage: <div id="cipherbc-form"></div><script src="https://cipherform.netlify.app/embed.js"></script>
+ * Usage: <div id="cipherbc-form"></div><script src="https://form.cipherbc.com/embed.js"></script>
  */
 (function() {
   // Find the container
@@ -16,7 +16,7 @@
   var width = container.getAttribute('data-width') || '100%';
 
   // Build iframe URL with parent page tracking data
-  var iframeUrl = 'https://cipherform.netlify.app';
+  var iframeUrl = 'https://form.cipherbc.com';
   var params = new URLSearchParams();
 
   // Pass parent page's referrer
@@ -54,7 +54,7 @@
   // Listen for success redirect from form
   window.addEventListener('message', function(event) {
     // Only accept messages from our domain
-    if (event.origin !== 'https://cipherform.netlify.app') return;
+    if (event.origin !== 'https://form.cipherbc.com') return;
 
     if (event.data.type === 'form-submitted') {
       console.log('CipherBC Form: Submission successful');
