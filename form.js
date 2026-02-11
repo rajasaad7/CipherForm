@@ -12,14 +12,34 @@ const state = {
 function getTrackingData() {
     const urlParams = new URLSearchParams(window.location.search);
 
+    // Determine if we're in an iframe
+    const isInIframe = window.self !== window.top;
+
+    let pageUrl = window.location.href;
+    let referrer = document.referrer || 'Direct';
+
+    // If in iframe, the parent page URL is in document.referrer
+    if (isInIframe && document.referrer) {
+        pageUrl = document.referrer; // The page where form is embedded
+
+        // Try to get parent's referrer from URL parameter (passed by embed script)
+        const parentReferrer = urlParams.get('parent_referrer');
+        if (parentReferrer) {
+            referrer = parentReferrer;
+        } else {
+            // If not available, referrer stays as 'Direct' since we can't access parent's referrer
+            referrer = 'Direct (Embedded Form)';
+        }
+    }
+
     return {
         utm_source: urlParams.get('utm_source') || '',
         utm_medium: urlParams.get('utm_medium') || '',
         utm_campaign: urlParams.get('utm_campaign') || '',
         utm_term: urlParams.get('utm_term') || '',
         utm_content: urlParams.get('utm_content') || '',
-        page_url: window.location.href,
-        referrer: document.referrer || 'Direct'
+        page_url: pageUrl,
+        referrer: referrer
     };
 }
 

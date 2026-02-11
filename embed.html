@@ -98,8 +98,24 @@
 &lt;div id="cipherbc-form"&gt;&lt;/div&gt;
 &lt;script&gt;
   (function() {
+    var iframeUrl = 'https://cipherform.netlify.app';
+    var params = new URLSearchParams();
+
+    // Pass referrer for tracking
+    if (document.referrer) params.append('parent_referrer', document.referrer);
+
+    // Pass UTM parameters
+    var parentParams = new URLSearchParams(window.location.search);
+    ['utm_source', 'utm_medium', 'utm_campaign', 'utm_term', 'utm_content'].forEach(function(p) {
+      var v = parentParams.get(p);
+      if (v) params.append(p, v);
+    });
+
+    var qs = params.toString();
+    if (qs) iframeUrl += '?' + qs;
+
     var iframe = document.createElement('iframe');
-    iframe.src = 'https://cipherform.netlify.app';
+    iframe.src = iframeUrl;
     iframe.style.width = '100%';
     iframe.style.height = '900px';
     iframe.style.border = 'none';
@@ -142,8 +158,22 @@
                 <div id="cipherbc-form-demo"></div>
                 <script>
                   (function() {
+                    var iframeUrl = 'https://cipherform.netlify.app';
+                    var params = new URLSearchParams();
+
+                    if (document.referrer) params.append('parent_referrer', document.referrer);
+
+                    var parentParams = new URLSearchParams(window.location.search);
+                    ['utm_source', 'utm_medium', 'utm_campaign', 'utm_term', 'utm_content'].forEach(function(p) {
+                      var v = parentParams.get(p);
+                      if (v) params.append(p, v);
+                    });
+
+                    var qs = params.toString();
+                    if (qs) iframeUrl += '?' + qs;
+
                     var iframe = document.createElement('iframe');
-                    iframe.src = 'https://cipherform.netlify.app';
+                    iframe.src = iframeUrl;
                     iframe.style.width = '100%';
                     iframe.style.height = '900px';
                     iframe.style.border = 'none';

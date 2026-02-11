@@ -15,9 +15,35 @@
   var height = container.getAttribute('data-height') || '900px';
   var width = container.getAttribute('data-width') || '100%';
 
+  // Build iframe URL with parent page tracking data
+  var iframeUrl = 'https://cipherform.netlify.app';
+  var params = new URLSearchParams();
+
+  // Pass parent page's referrer
+  if (document.referrer) {
+    params.append('parent_referrer', document.referrer);
+  }
+
+  // Pass UTM parameters from parent page if present
+  var parentParams = new URLSearchParams(window.location.search);
+  var utmParams = ['utm_source', 'utm_medium', 'utm_campaign', 'utm_term', 'utm_content'];
+
+  utmParams.forEach(function(param) {
+    var value = parentParams.get(param);
+    if (value) {
+      params.append(param, value);
+    }
+  });
+
+  // Add parameters to iframe URL if any exist
+  var queryString = params.toString();
+  if (queryString) {
+    iframeUrl += '?' + queryString;
+  }
+
   // Create iframe
   var iframe = document.createElement('iframe');
-  iframe.src = 'https://cipherform.netlify.app';
+  iframe.src = iframeUrl;
   iframe.style.width = width;
   iframe.style.height = height;
   iframe.style.border = 'none';

@@ -23,7 +23,7 @@ body {
         'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
-    background: #ffffff;
+    background: transparent;
     min-height: 100vh;
     padding: 40px 20px;
     color: var(--text-color);
@@ -38,7 +38,7 @@ body {
 
 /* ===== Form Wrapper ===== */
 .form-wrapper {
-    background: var(--white);
+    background: transparent;
     padding: 0;
 }
 
