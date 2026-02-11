@@ -412,14 +412,26 @@ form.addEventListener('submit', async (e) => {
 
         // Determine redirect URL based on page URL
         let redirectUrl = 'https://www.cipherbc.com/cards/contact-success'; // Default
+        let pageUrl;
 
-        const pageUrl = data.page_url || window.location.href;
+        // Get the correct page URL
+        if (window.top !== window.self) {
+            // In iframe - use referrer (parent page URL) or page_url from data
+            pageUrl = document.referrer || data.page_url || '';
+        } else {
+            // Direct access - use current URL
+            pageUrl = window.location.href;
+        }
+
+        console.log('Page URL for redirect:', pageUrl);
 
         if (pageUrl.includes('/custody/')) {
             redirectUrl = 'https://www.cipherbc.com/custody/contact-success';
         } else if (pageUrl.includes('/cards/')) {
             redirectUrl = 'https://www.cipherbc.com/cards/contact-success';
         }
+
+        console.log('Redirecting to:', redirectUrl);
 
         // Redirect parent window (or self if not in iframe)
         if (window.top !== window.self) {
