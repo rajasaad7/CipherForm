@@ -18,9 +18,16 @@ function getTrackingData() {
     let pageUrl = window.location.href;
     let referrer = document.referrer || 'Direct';
 
-    // If in iframe, the parent page URL is in document.referrer
-    if (isInIframe && document.referrer) {
-        pageUrl = document.referrer; // The page where form is embedded
+    // If in iframe, get parent page URL from URL parameter (passed by embed script)
+    if (isInIframe) {
+        // Use parent_url parameter if available (most reliable)
+        const parentUrl = urlParams.get('parent_url');
+        if (parentUrl) {
+            pageUrl = parentUrl;
+        } else if (document.referrer) {
+            // Fallback to document.referrer
+            pageUrl = document.referrer;
+        }
 
         // Try to get parent's referrer from URL parameter (passed by embed script)
         const parentReferrer = urlParams.get('parent_referrer');
@@ -426,8 +433,10 @@ form.addEventListener('submit', async (e) => {
 
         // Get the correct page URL
         if (window.top !== window.self) {
-            // In iframe - use referrer (parent page URL) or page_url from data
-            pageUrl = document.referrer || data.page_url || '';
+            // In iframe - use parent_url parameter (most reliable) or fallback
+            const urlParams = new URLSearchParams(window.location.search);
+            const parentUrl = urlParams.get('parent_url');
+            pageUrl = parentUrl || document.referrer || data.page_url || '';
         } else {
             // Direct access - use current URL
             pageUrl = window.location.href;

@@ -19,6 +19,9 @@
   var iframeUrl = 'https://form.cipherbc.com';
   var params = new URLSearchParams();
 
+  // Pass parent page's full URL (for redirect detection)
+  params.append('parent_url', window.location.href);
+
   // Pass parent page's referrer
   if (document.referrer) {
     params.append('parent_referrer', document.referrer);
