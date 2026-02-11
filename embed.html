@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CipherBC Contact Form - Embed Instructions</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 900px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #f9fafb;
+        }
+        .container {
+            background: white;
+            padding: 40px;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #1f2937;
+            margin-bottom: 10px;
+        }
+        p {
+            color: #6b7280;
+            line-height: 1.6;
+        }
+        .code-block {
+            background: #1f2937;
+            color: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            overflow-x: auto;
+            margin: 20px 0;
+            position: relative;
+        }
+        .code-block pre {
+            margin: 0;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            line-height: 1.5;
+        }
+        .copy-btn {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: #FFE066;
+            color: #000;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 12px;
+        }
+        .copy-btn:hover {
+            background: #FFD54F;
+        }
+        .section {
+            margin: 30px 0;
+        }
+        .preview {
+            border: 2px dashed #e5e7eb;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+        }
+        h2 {
+            color: #1f2937;
+            margin-top: 30px;
+            margin-bottom: 15px;
+        }
+        ul {
+            color: #6b7280;
+            line-height: 2;
+        }
+        .highlight {
+            background: #FFF9DB;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: monospace;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🚀 CipherBC Contact Form - Embed Code</h1>
+        <p>Use this code to embed the contact form anywhere on your website.</p>
+
+        <div class="section">
+            <h2>📋 Embed Code (Copy & Paste)</h2>
+            <p>Add this code where you want the form to appear:</p>
+
+            <div class="code-block">
+                <button class="copy-btn" onclick="copyCode('embed-code')">Copy Code</button>
+                <pre id="embed-code">&lt;!-- CipherBC Contact Form --&gt;
+&lt;div id="cipherbc-form"&gt;&lt;/div&gt;
+&lt;script&gt;
+  (function() {
+    var iframe = document.createElement('iframe');
+    iframe.src = 'https://cipherform.netlify.app';
+    iframe.style.width = '100%';
+    iframe.style.height = '900px';
+    iframe.style.border = 'none';
+    iframe.style.borderRadius = '8px';
+    iframe.setAttribute('scrolling', 'auto');
+    document.getElementById('cipherbc-form').appendChild(iframe);
+  })();
+&lt;/script&gt;</pre>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>⚡ Advanced: External Script Version</h2>
+            <p>For easier management, use this single-line embed:</p>
+
+            <div class="code-block">
+                <button class="copy-btn" onclick="copyCode('script-code')">Copy Code</button>
+                <pre id="script-code">&lt;div id="cipherbc-form"&gt;&lt;/div&gt;
+&lt;script src="https://cipherform.netlify.app/embed.js"&gt;&lt;/script&gt;</pre>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>🎨 Customization Options</h2>
+            <ul>
+                <li><span class="highlight">data-height</span>: Set custom height (default: 900px)</li>
+                <li><span class="highlight">data-width</span>: Set custom width (default: 100%)</li>
+            </ul>
+
+            <div class="code-block">
+                <button class="copy-btn" onclick="copyCode('custom-code')">Copy Code</button>
+                <pre id="custom-code">&lt;div id="cipherbc-form" data-height="800px" data-width="600px"&gt;&lt;/div&gt;
+&lt;script src="https://cipherform.netlify.app/embed.js"&gt;&lt;/script&gt;</pre>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>📱 Preview</h2>
+            <div class="preview">
+                <div id="cipherbc-form-demo"></div>
+                <script>
+                  (function() {
+                    var iframe = document.createElement('iframe');
+                    iframe.src = 'https://cipherform.netlify.app';
+                    iframe.style.width = '100%';
+                    iframe.style.height = '900px';
+                    iframe.style.border = 'none';
+                    iframe.style.borderRadius = '8px';
+                    iframe.setAttribute('scrolling', 'auto');
+                    document.getElementById('cipherbc-form-demo').appendChild(iframe);
+                  })();
+                </script>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function copyCode(elementId) {
+            var code = document.getElementById(elementId).textContent;
+            navigator.clipboard.writeText(code).then(function() {
+                var btn = event.target;
+                btn.textContent = 'Copied!';
+                setTimeout(function() {
+                    btn.textContent = 'Copy Code';
+                }, 2000);
+            });
+        }
+    </script>
+</body>
+</html>
