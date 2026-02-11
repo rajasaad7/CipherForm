@@ -140,19 +140,15 @@ sendOtpBtn.addEventListener('click', async () => {
         // Make email input readonly (not disabled, so FormData still includes it)
         workEmailInput.readOnly = true;
         workEmailInput.style.background = '#f3f4f6';
-        sendOtpBtn.textContent = 'OTP Sent ✓';
+        sendOtpBtn.textContent = 'OTP Sent';
         sendOtpBtn.style.background = '#FFE066';
 
         // Focus OTP input
         otpCodeInput.focus();
 
         // Show success message
-        verificationStatus.textContent = '✓ OTP sent to your email';
+        verificationStatus.innerHTML = '✓ OTP sent to your email';
         verificationStatus.className = 'verification-status verified';
-
-        setTimeout(() => {
-            verificationStatus.textContent = '';
-        }, 3000);
 
     } catch (error) {
         console.error('Send OTP error:', error);
@@ -224,7 +220,7 @@ verifyOtpBtn.addEventListener('click', async () => {
     const otp = otpCodeInput.value.trim();
 
     if (!/^\d{6}$/.test(otp)) {
-        verificationStatus.textContent = '✗ Invalid OTP format';
+        verificationStatus.textContent = 'Invalid OTP format';
         verificationStatus.className = 'verification-status error';
         return;
     }
@@ -232,7 +228,7 @@ verifyOtpBtn.addEventListener('click', async () => {
     setButtonLoading(verifyOtpBtn, true);
 
     if (!state.otpToken) {
-        verificationStatus.textContent = '✗ No verification token. Please request a new OTP.';
+        verificationStatus.textContent = 'No verification token. Please request a new OTP.';
         verificationStatus.className = 'verification-status error';
         setButtonLoading(verifyOtpBtn, false);
         return;
@@ -261,8 +257,14 @@ verifyOtpBtn.addEventListener('click', async () => {
         // Update state
         state.emailVerified = true;
 
-        // Show success
-        verificationStatus.textContent = '✓ Email verified!';
+        // Show success with green tick icon
+        verificationStatus.innerHTML = `
+            <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg" style="vertical-align: middle; margin-right: 6px;">
+                <circle cx="10" cy="10" r="10" fill="#10b981"/>
+                <path d="M6 10L8.5 12.5L14 7" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+            Email verified!
+        `;
         verificationStatus.className = 'verification-status verified';
         otpTimer.textContent = '';
 
@@ -270,14 +272,14 @@ verifyOtpBtn.addEventListener('click', async () => {
         otpCodeInput.disabled = true;
         verifyOtpBtn.disabled = true;
         verifyOtpBtn.style.background = '#FFE066';
-        verifyOtpBtn.textContent = 'Verified ✓';
+        verifyOtpBtn.textContent = 'Verified';
 
         // Enable submit button
         submitBtn.disabled = false;
 
     } catch (error) {
         console.error('Verify OTP error:', error);
-        verificationStatus.textContent = '✗ ' + error.message;
+        verificationStatus.textContent = error.message;
         verificationStatus.className = 'verification-status error';
     } finally {
         setButtonLoading(verifyOtpBtn, false);
@@ -404,6 +406,26 @@ submitAnotherBtn.addEventListener('click', () => {
 
     // Focus first input
     document.getElementById('firstName').focus();
+});
+
+/**
+ * Handle message character counter
+ */
+const messageInput = document.getElementById('message');
+const charCount = document.getElementById('charCount');
+
+messageInput.addEventListener('input', () => {
+    const count = messageInput.value.length;
+    charCount.textContent = `${count} of 500`;
+
+    // Change color when approaching limit
+    if (count > 450) {
+        charCount.style.color = '#ef4444'; // Red
+    } else if (count > 400) {
+        charCount.style.color = '#f59e0b'; // Orange
+    } else {
+        charCount.style.color = '#6b7280'; // Gray
+    }
 });
 
 /**

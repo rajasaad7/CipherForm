@@ -68,7 +68,8 @@ async function sendToHubSpot(data) {
         payload.properties.telegram = data.telegram;
       }
       if (data.productInterest && data.productInterest.length > 0) {
-        payload.properties.product_interest = data.productInterest.join(', ');
+        // HubSpot multiple checkbox properties require semicolon separator
+        payload.properties.product_interest = data.productInterest.join(';');
       }
 
       const response = await fetch(contactsUrl, {
