@@ -421,8 +421,14 @@ form.addEventListener('submit', async (e) => {
             redirectUrl = 'https://www.cipherbc.com/cards/contact-success';
         }
 
-        // Redirect to success page
-        window.location.href = redirectUrl;
+        // Redirect parent window (or self if not in iframe)
+        if (window.top !== window.self) {
+            // We're in an iframe, redirect the parent
+            window.top.location.href = redirectUrl;
+        } else {
+            // Direct access, redirect normally
+            window.location.href = redirectUrl;
+        }
 
     } catch (error) {
         console.error('Submit form error:', error);
