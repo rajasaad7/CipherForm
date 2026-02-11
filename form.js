@@ -141,7 +141,7 @@ sendOtpBtn.addEventListener('click', async () => {
         workEmailInput.readOnly = true;
         workEmailInput.style.background = '#f3f4f6';
         sendOtpBtn.textContent = 'OTP Sent ✓';
-        sendOtpBtn.style.background = '#10b981';
+        sendOtpBtn.style.background = '#FFE066';
 
         // Focus OTP input
         otpCodeInput.focus();
@@ -170,14 +170,17 @@ otpCodeInput.addEventListener('input', (e) => {
 });
 
 /**
- * Handle phone number input - ensure it starts with +
+ * Handle phone number input - only allow + at start and numbers
  */
 phoneNumberInput.addEventListener('input', (e) => {
     let value = e.target.value;
 
-    // If user is typing and doesn't have +, add it
-    if (value && !value.startsWith('+')) {
-        e.target.value = '+' + value.replace(/[^\d]/g, '');
+    // Remove all non-digit characters except + at the start
+    if (value.startsWith('+')) {
+        e.target.value = '+' + value.substring(1).replace(/\D/g, '');
+    } else {
+        // If doesn't start with +, remove all non-digits
+        e.target.value = value.replace(/\D/g, '');
     }
 });
 
@@ -194,14 +197,20 @@ phoneNumberInput.addEventListener('keydown', (e) => {
         return;
     }
 
-    // Ensure that it's a number or + at the beginning
     const value = e.target.value;
-    if (value === '' && e.key === '+') {
-        return; // Allow + at the beginning
+    const cursorPosition = e.target.selectionStart;
+
+    // Only allow + if field is empty or cursor is at position 0 and no + exists
+    if (e.key === '+') {
+        if (value === '' || (cursorPosition === 0 && !value.startsWith('+'))) {
+            return;
+        }
+        e.preventDefault();
+        return;
     }
 
-    // After +, only allow digits
-    if ((e.key < '0' || e.key > '9') && e.key !== '+') {
+    // Only allow digits after validation
+    if (e.key < '0' || e.key > '9') {
         e.preventDefault();
     }
 });
@@ -260,7 +269,7 @@ verifyOtpBtn.addEventListener('click', async () => {
         // Disable OTP fields
         otpCodeInput.disabled = true;
         verifyOtpBtn.disabled = true;
-        verifyOtpBtn.style.background = '#10b981';
+        verifyOtpBtn.style.background = '#FFE066';
         verifyOtpBtn.textContent = 'Verified ✓';
 
         // Enable submit button
@@ -317,7 +326,13 @@ form.addEventListener('submit', async (e) => {
 
     // Validate phone number format
     if (!data.phone || !data.phone.startsWith('+')) {
-        showError('Phone number must start with + followed by country code (e.g., +971501234567)');
+        showError('Phone number must start with + followed by country code (e.g., +12025551234)');
+        return;
+    }
+
+    // Check if country code starts with 0 (invalid)
+    if (data.phone.length > 1 && data.phone[1] === '0') {
+        showError('Invalid country code. Country codes cannot start with 0 (e.g., use +1, not +01)');
         return;
     }
 

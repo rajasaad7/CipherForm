@@ -22,6 +22,8 @@ function validateFormData(data) {
 
   if (!data.phone || !data.phone.trim().startsWith('+')) {
     errors.push('Phone number must start with + and include country code');
+  } else if (data.phone.trim().length > 1 && data.phone.trim()[1] === '0') {
+    errors.push('Invalid country code. Country codes cannot start with 0');
   } else if (data.phone.trim().length < 10) {
     errors.push('Valid phone number with country code is required');
   }
@@ -34,74 +36,13 @@ function validateFormData(data) {
 
 /**
  * Send form data to HubSpot
- * Supports two methods:
- * 1. HubSpot Forms API (no API key needed, easier setup)
- * 2. HubSpot Contacts API (requires private app access token)
+ * Uses HubSpot Contacts API to create contacts directly in CRM
+ * Requires HUBSPOT_ACCESS_TOKEN from private app
  */
 async function sendToHubSpot(data) {
-  const hubspotPortalId = process.env.HUBSPOT_PORTAL_ID;
-  const hubspotFormGuid = process.env.HUBSPOT_FORM_GUID;
   const hubspotAccessToken = process.env.HUBSPOT_ACCESS_TOKEN;
 
-  // Method 1: HubSpot Forms API (Recommended for simplicity)
-  if (hubspotPortalId && hubspotFormGuid) {
-    try {
-      const formUrl = `https://api.hsforms.com/submissions/v3/integration/submit/${hubspotPortalId}/${hubspotFormGuid}`;
-
-      const payload = {
-        fields: [
-          { name: 'firstname', value: data.firstName },
-          { name: 'lastname', value: data.lastName || '' },
-          { name: 'email', value: data.email },
-          { name: 'phone', value: data.phone },
-          { name: 'company', value: data.companyName || '' },
-          { name: 'message', value: data.message || '' }
-        ],
-        context: {
-          pageUri: 'https://cipherbc.com/contact',
-          pageName: 'CipherBC Contact Form'
-        }
-      };
-
-      // Add optional fields if present
-      if (data.linkedinUrl) {
-        payload.fields.push({ name: 'linkedin_url', value: data.linkedinUrl });
-      }
-      if (data.telegram) {
-        payload.fields.push({ name: 'telegram', value: data.telegram });
-      }
-      if (data.productInterest && data.productInterest.length > 0) {
-        payload.fields.push({ name: 'product_interest', value: data.productInterest.join(', ') });
-      }
-
-      const response = await fetch(formUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(payload)
-      });
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`HubSpot Forms API error: ${response.status} - ${errorText}`);
-      }
-
-      const result = await response.json();
-      console.log('✓ Data sent to HubSpot Forms API successfully:', result);
-      return { success: true, method: 'forms-api' };
-
-    } catch (error) {
-      console.error('HubSpot Forms API error:', error);
-      // Don't return here - fall through to try Contacts API if available
-      if (!hubspotAccessToken) {
-        return { success: false, error: error.message };
-      }
-      console.log('Falling back to Contacts API...');
-    }
-  }
-
-  // Method 2: HubSpot Contacts API (Alternative method / Fallback)
+  // Use HubSpot Contacts API to create contacts directly
   if (hubspotAccessToken) {
     try {
       const contactsUrl = 'https://api.hubapi.com/crm/v3/objects/contacts';
@@ -150,11 +91,23 @@ async function sendToHubSpot(data) {
 
     } catch (error) {
       console.error('HubSpot Contacts API error:', error);
-      return { success: false, error: error.message };
+
+      // Check if it's a duplicate contact error
+      if (error.message && error.message.includes('already exists')) {
+        return {
+          success: false,
+          error: 'This email is already registered in our system. Please use a different email address or contact support.'
+        };
+      }
+
+      return {
+        success: false,
+        error: 'Failed to create contact in HubSpot. Please try again later or contact support.'
+      };
     }
   }
 
-  console.log('No HubSpot configuration found - skipping HubSpot submission');
+  console.log('HUBSPOT_ACCESS_TOKEN not configured - skipping HubSpot submission');
   return { success: true, skipped: true };
 }
 
@@ -271,19 +224,19 @@ exports.handler = async (event) => {
     if (hubspotResult.success && !hubspotResult.skipped) {
       console.log(`✓ Form data sent to HubSpot successfully (method: ${hubspotResult.method})`);
     } else if (!hubspotResult.skipped) {
-      console.warn('HubSpot submission failed, but form accepted');
+      console.warn('HubSpot submission failed, but form accepted:', hubspotResult.error);
     }
 
-    // Send to webhook if configured (secondary/backup)
+    // Send to webhook if configured (IMPORTANT: logs all submissions to Google Sheets)
     const webhookResult = await sendToWebhook(sanitizedData);
 
     if (webhookResult.success && !webhookResult.skipped) {
-      console.log('Form data sent to webhook successfully');
+      console.log('✓ Form data sent to webhook successfully');
     } else if (!webhookResult.skipped) {
       console.warn('Webhook submission failed, but form accepted');
     }
 
-    // Return success
+    // Always return success to user (webhook will log all submissions for verification)
     return {
       statusCode: 200,
       headers,

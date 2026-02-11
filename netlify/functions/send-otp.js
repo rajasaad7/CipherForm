@@ -75,7 +75,7 @@ async function sendEmail(email, otp) {
                         Use the verification code below to complete your form submission:
                       </p>
                       <div style="background-color: #f3f4f6; border-radius: 8px; padding: 20px; margin: 30px 0;">
-                        <div style="font-size: 36px; font-weight: 700; letter-spacing: 8px; color: #2563eb; font-family: 'Courier New', monospace;">
+                        <div style="font-size: 36px; font-weight: 700; letter-spacing: 8px; color: #000000; font-family: 'Courier New', monospace;">
                           ${otp}
                         </div>
                       </div>
