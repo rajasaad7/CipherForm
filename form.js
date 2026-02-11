@@ -6,6 +6,23 @@ const state = {
     otpToken: null // Stores the verification token from server
 };
 
+/**
+ * Get UTM parameters and tracking data (for Google Sheets logging)
+ */
+function getTrackingData() {
+    const urlParams = new URLSearchParams(window.location.search);
+
+    return {
+        utm_source: urlParams.get('utm_source') || '',
+        utm_medium: urlParams.get('utm_medium') || '',
+        utm_campaign: urlParams.get('utm_campaign') || '',
+        utm_term: urlParams.get('utm_term') || '',
+        utm_content: urlParams.get('utm_content') || '',
+        page_url: window.location.href,
+        referrer: document.referrer || 'Direct'
+    };
+}
+
 // API Configuration
 const API_BASE = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
     ? 'http://localhost:8888/.netlify/functions'
@@ -308,6 +325,9 @@ form.addEventListener('submit', async (e) => {
         productInterest.push(value);
     });
 
+    // Get tracking data
+    const trackingData = getTrackingData();
+
     const data = {
         firstName: formData.get('firstName'),
         lastName: formData.get('lastName'),
@@ -317,7 +337,8 @@ form.addEventListener('submit', async (e) => {
         linkedinUrl: formData.get('linkedinUrl'),
         telegram: formData.get('telegram'),
         productInterest: productInterest,
-        message: formData.get('message')
+        message: formData.get('message'),
+        ...trackingData // Include UTM params and tracking data
     };
 
     // Basic validation
