@@ -184,8 +184,8 @@ sendOtpBtn.addEventListener('click', async () => {
         // Make email input readonly (not disabled, so FormData still includes it)
         workEmailInput.readOnly = true;
         workEmailInput.style.background = '#f3f4f6';
-        sendOtpBtn.textContent = 'OTP Sent';
-        sendOtpBtn.style.background = '#FFE066';
+        sendOtpBtn.textContent = 'OTP Sent!';
+        sendOtpBtn.style.background = '#d1d5db'; // Dull gray when disabled
 
         // Focus OTP input
         otpCodeInput.focus();
@@ -194,10 +194,13 @@ sendOtpBtn.addEventListener('click', async () => {
         verificationStatus.innerHTML = '✓ OTP sent to your email';
         verificationStatus.className = 'verification-status verified';
 
+        // Remove loading state but keep disabled
+        sendOtpBtn.classList.remove('loading');
+
     } catch (error) {
         console.error('Send OTP error:', error);
         showError(error.message);
-    } finally {
+        // Only re-enable button on error
         setButtonLoading(sendOtpBtn, false);
     }
 });
