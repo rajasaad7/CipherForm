@@ -65,8 +65,8 @@ function getTrackingData() {
     let pageUrl = window.location.href;
     let referrer = document.referrer || 'Direct';
 
-    // Priority 1: Use landing_page_url from sessionStorage (set by GTM on first page with UTM)
-    const landingPageUrl = sessionStorage.getItem('landing_page_url');
+    // Priority 1: Use landing_page_url from URL parameter (passed by embed script from parent's sessionStorage)
+    const landingPageUrl = urlParams.get('landing_page_url');
     if (landingPageUrl) {
         pageUrl = landingPageUrl;
     } else if (isInIframe) {

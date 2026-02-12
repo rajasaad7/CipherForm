@@ -104,13 +104,18 @@
     // Pass parent page's full URL (for redirect detection)
     params.append('parent_url', window.location.href);
 
+    // Pass landing page URL from sessionStorage (captured by GTM)
+    if (window.sessionStorage &amp;&amp; sessionStorage.getItem('landing_page_url')) {
+      params.append('landing_page_url', sessionStorage.getItem('landing_page_url'));
+    }
+
     // Pass referrer for tracking
     if (document.referrer) params.append('parent_referrer', document.referrer);
 
-    // Pass UTM parameters
+    // Pass UTM parameters from URL or sessionStorage
     var parentParams = new URLSearchParams(window.location.search);
     ['utm_source', 'utm_medium', 'utm_campaign', 'utm_term', 'utm_content'].forEach(function(p) {
-      var v = parentParams.get(p);
+      var v = parentParams.get(p) || (window.sessionStorage &amp;&amp; sessionStorage.getItem(p));
       if (v) params.append(p, v);
     });
 
@@ -167,11 +172,16 @@
                     // Pass parent page's full URL (for redirect detection)
                     params.append('parent_url', window.location.href);
 
+                    // Pass landing page URL from sessionStorage (captured by GTM)
+                    if (window.sessionStorage && sessionStorage.getItem('landing_page_url')) {
+                      params.append('landing_page_url', sessionStorage.getItem('landing_page_url'));
+                    }
+
                     if (document.referrer) params.append('parent_referrer', document.referrer);
 
                     var parentParams = new URLSearchParams(window.location.search);
                     ['utm_source', 'utm_medium', 'utm_campaign', 'utm_term', 'utm_content'].forEach(function(p) {
-                      var v = parentParams.get(p);
+                      var v = parentParams.get(p) || (window.sessionStorage && sessionStorage.getItem(p));
                       if (v) params.append(p, v);
                     });
 

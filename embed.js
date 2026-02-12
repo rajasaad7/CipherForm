@@ -22,6 +22,11 @@
   // Pass parent page's full URL (for redirect detection)
   params.append('parent_url', window.location.href);
 
+  // Pass landing page URL from sessionStorage (captured by GTM)
+  if (window.sessionStorage && sessionStorage.getItem('landing_page_url')) {
+    params.append('landing_page_url', sessionStorage.getItem('landing_page_url'));
+  }
+
   // Pass parent page's referrer
   if (document.referrer) {
     params.append('parent_referrer', document.referrer);
