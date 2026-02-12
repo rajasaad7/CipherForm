@@ -27,12 +27,13 @@
     params.append('parent_referrer', document.referrer);
   }
 
-  // Pass UTM parameters from parent page if present
+  // Pass UTM parameters from parent page URL or sessionStorage
   var parentParams = new URLSearchParams(window.location.search);
   var utmParams = ['utm_source', 'utm_medium', 'utm_campaign', 'utm_term', 'utm_content'];
 
   utmParams.forEach(function(param) {
-    var value = parentParams.get(param);
+    // Priority: URL params > sessionStorage
+    var value = parentParams.get(param) || (window.sessionStorage && sessionStorage.getItem(param));
     if (value) {
       params.append(param, value);
     }

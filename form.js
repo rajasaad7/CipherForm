@@ -7,6 +7,53 @@ const state = {
 };
 
 /**
+ * Store UTM parameters in sessionStorage for cross-page tracking
+ */
+function storeUtmParameters() {
+    const urlParams = new URLSearchParams(window.location.search);
+    const utmParams = ['utm_source', 'utm_medium', 'utm_campaign', 'utm_term', 'utm_content'];
+
+    // Check if any UTM parameters exist in current URL
+    const hasUtm = utmParams.some(param => urlParams.has(param));
+
+    if (hasUtm) {
+        // Store each UTM parameter
+        utmParams.forEach(param => {
+            const value = urlParams.get(param);
+            if (value) {
+                sessionStorage.setItem(param, value);
+            }
+        });
+
+        // Store landing page URL
+        if (!sessionStorage.getItem('landing_page_url')) {
+            sessionStorage.setItem('landing_page_url', window.location.href);
+        }
+
+        console.log('UTM parameters stored:', {
+            utm_source: sessionStorage.getItem('utm_source'),
+            utm_medium: sessionStorage.getItem('utm_medium'),
+            utm_campaign: sessionStorage.getItem('utm_campaign')
+        });
+    }
+}
+
+/**
+ * Get UTM parameters from URL or sessionStorage (for cross-page tracking)
+ */
+function getUtmParameters() {
+    const urlParams = new URLSearchParams(window.location.search);
+    const utmParams = {};
+
+    // Priority: URL params > sessionStorage
+    ['utm_source', 'utm_medium', 'utm_campaign', 'utm_term', 'utm_content'].forEach(param => {
+        utmParams[param] = urlParams.get(param) || sessionStorage.getItem(param) || '';
+    });
+
+    return utmParams;
+}
+
+/**
  * Get UTM parameters and tracking data (for Google Sheets logging)
  */
 function getTrackingData() {
@@ -18,9 +65,12 @@ function getTrackingData() {
     let pageUrl = window.location.href;
     let referrer = document.referrer || 'Direct';
 
-    // If in iframe, get parent page URL from URL parameter (passed by embed script)
-    if (isInIframe) {
-        // Use parent_url parameter if available (most reliable)
+    // Priority 1: Use landing_page_url from sessionStorage (set by GTM on first page with UTM)
+    const landingPageUrl = sessionStorage.getItem('landing_page_url');
+    if (landingPageUrl) {
+        pageUrl = landingPageUrl;
+    } else if (isInIframe) {
+        // Priority 2: If in iframe, get parent page URL from URL parameter (passed by embed script)
         const parentUrl = urlParams.get('parent_url');
         if (parentUrl) {
             pageUrl = parentUrl;
@@ -28,7 +78,10 @@ function getTrackingData() {
             // Fallback to document.referrer
             pageUrl = document.referrer;
         }
+    }
 
+    // Get referrer
+    if (isInIframe) {
         // Try to get parent's referrer from URL parameter (passed by embed script)
         const parentReferrer = urlParams.get('parent_referrer');
         if (parentReferrer) {
@@ -39,12 +92,15 @@ function getTrackingData() {
         }
     }
 
+    // Get UTM parameters (from URL or sessionStorage)
+    const utmParams = getUtmParameters();
+
     return {
-        utm_source: urlParams.get('utm_source') || '',
-        utm_medium: urlParams.get('utm_medium') || '',
-        utm_campaign: urlParams.get('utm_campaign') || '',
-        utm_term: urlParams.get('utm_term') || '',
-        utm_content: urlParams.get('utm_content') || '',
+        utm_source: utmParams.utm_source,
+        utm_medium: utmParams.utm_medium,
+        utm_campaign: utmParams.utm_campaign,
+        utm_term: utmParams.utm_term,
+        utm_content: utmParams.utm_content,
         page_url: pageUrl,
         referrer: referrer
     };
@@ -532,6 +588,9 @@ messageInput.addEventListener('input', () => {
 function init() {
     console.log('Contact Form initialized');
     console.log('API Base:', API_BASE);
+
+    // Store UTM parameters if present in URL
+    storeUtmParameters();
 
     // Focus first input
     document.getElementById('firstName').focus();
