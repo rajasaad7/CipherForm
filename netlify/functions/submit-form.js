@@ -50,78 +50,128 @@ function validateFormData(data) {
 }
 
 /**
- * Send form data to HubSpot
- * Uses HubSpot Contacts API to create contacts directly in CRM
- * Requires HUBSPOT_ACCESS_TOKEN from private app
+ * Send form data to Monday.com
+ * Uses Monday.com GraphQL API to create items in a board
+ * Requires MONDAY_API_TOKEN and MONDAY_BOARD_ID
  */
-async function sendToHubSpot(data) {
-  const hubspotAccessToken = process.env.HUBSPOT_ACCESS_TOKEN;
+async function sendToMonday(data) {
+  const mondayApiToken = process.env.MONDAY_API_TOKEN;
+  const mondayBoardId = process.env.MONDAY_BOARD_ID;
 
-  if (!hubspotAccessToken) {
-    console.log('HUBSPOT_ACCESS_TOKEN not configured - skipping HubSpot submission');
+  if (!mondayApiToken || !mondayBoardId) {
+    console.log('Monday.com not configured (missing MONDAY_API_TOKEN or MONDAY_BOARD_ID) - skipping Monday submission');
     return { success: true, skipped: true };
   }
 
   try {
-    const contactsUrl = 'https://api.hubapi.com/crm/v3/objects/contacts';
+    const mondayApiUrl = 'https://api.monday.com/v2';
 
-    const payload = {
-      properties: {
-        firstname: data.firstName,
-        lastname: data.lastName || data.firstName,
-        email: data.email,
-        phone: data.phone,
-        company: data.companyName || '',
-        message: data.message || '',
-        hs_lead_status: 'NEW',
-        lifecyclestage: 'lead'
+    // Prepare column values with fixed column IDs from board structure
+    const columnValues = {};
+
+    // Map form data to Monday.com columns using dedicated columns
+    // Based on actual board structure with new columns
+
+    // First Name & Last Name - text fields
+    columnValues['first_name__1'] = data.firstName;
+    columnValues['last_name__1'] = data.lastName || '';
+
+    // Email - text field
+    columnValues['email__1'] = data.email;
+
+    // Phone - use Phone Number text field instead of Phone type field
+    columnValues['phone_number__1'] = data.phone;
+
+    // Company - Business Type field
+    if (data.companyName) {
+      columnValues['business_type__1'] = data.companyName;
+    }
+
+    // Enquiry - user's message
+    if (data.message) {
+      columnValues['enquiry__1'] = data.message;
+    }
+
+    // LinkedIn - link column type
+    if (data.linkedinUrl) {
+      columnValues['link_mm263t0s'] = { "url": data.linkedinUrl, "text": data.linkedinUrl };
+    }
+
+    // TG/WA - text field (dedicated column)
+    if (data.telegram) {
+      columnValues['text_mm26r0dm'] = data.telegram;
+    }
+
+    // Product Interest - dedicated text column
+    if (data.productInterest && data.productInterest.length > 0) {
+      columnValues['text_mm26k1r2'] = data.productInterest.join(', ');
+    }
+
+    // UTM Tracking - dedicated UTM column
+    const utmData = [];
+    if (data.utm_source) utmData.push(`Source: ${data.utm_source}`);
+    if (data.utm_medium) utmData.push(`Medium: ${data.utm_medium}`);
+    if (data.utm_campaign) utmData.push(`Campaign: ${data.utm_campaign}`);
+    if (data.utm_term) utmData.push(`Term: ${data.utm_term}`);
+    if (data.utm_content) utmData.push(`Content: ${data.utm_content}`);
+    if (data.page_url) utmData.push(`Page: ${data.page_url}`);
+    if (data.referrer) utmData.push(`Referrer: ${data.referrer}`);
+
+    if (utmData.length > 0) {
+      columnValues['text_mm26nn2c'] = utmData.join('\n');
+    }
+
+    // Status/Stage - set to "New"
+    columnValues['status'] = { "label": "New" };
+
+    // GraphQL mutation to create item
+    const query = `mutation ($boardId: ID!, $itemName: String!, $columnValues: JSON!) {
+      create_item (
+        board_id: $boardId,
+        item_name: $itemName,
+        column_values: $columnValues
+      ) {
+        id
       }
+    }`;
+
+    const variables = {
+      boardId: mondayBoardId,
+      itemName: `${data.firstName} ${data.lastName || ''} - ${data.email}`,
+      columnValues: JSON.stringify(columnValues)
     };
 
-    // Add optional fields if present
-    if (data.linkedinUrl) {
-      payload.properties.linkedin_url = data.linkedinUrl;
-    }
-    if (data.telegram) {
-      payload.properties.telegram = data.telegram;
-    }
-    if (data.productInterest && data.productInterest.length > 0) {
-      // HubSpot multiple checkbox properties require semicolon separator
-      payload.properties.product_interest = data.productInterest.join(';');
-    }
-
-    const response = await fetch(contactsUrl, {
+    const response = await fetch(mondayApiUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${hubspotAccessToken}`
+        'Authorization': mondayApiToken
       },
-      body: JSON.stringify(payload)
+      body: JSON.stringify({
+        query,
+        variables
+      })
     });
 
     if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(`HubSpot Contacts API error: ${errorData.message || response.status}`);
+      throw new Error(`Monday.com API error: ${response.status}`);
     }
 
     const result = await response.json();
-    console.log('✓ Contact created in HubSpot successfully:', result.id);
-    return { success: true, method: 'contacts-api', contactId: result.id };
+
+    if (result.errors) {
+      throw new Error(`Monday.com GraphQL error: ${JSON.stringify(result.errors)}`);
+    }
+
+    console.log('✓ Lead created in Monday.com successfully:', result.data.create_item.id);
+    return { success: true, method: 'monday-api', itemId: result.data.create_item.id };
 
   } catch (error) {
-    console.error('HubSpot Contacts API error:', error);
-
-    // Check if it's a duplicate contact error
-    if (error.message && error.message.includes('already exists')) {
-      return {
-        success: false,
-        error: 'This email is already registered in our system. Please use a different email address or contact support.'
-      };
-    }
+    console.error('Monday.com API error:', error);
 
     return {
       success: false,
-      error: 'Failed to create contact in HubSpot. Please try again later or contact support.'
+      error: 'Failed to create lead in Monday.com. Please try again later or contact support.'
     };
   }
 }
@@ -129,7 +179,7 @@ async function sendToHubSpot(data) {
 /**
  * Send form data to webhook (Google Sheets) with UTM tracking
  */
-async function sendToWebhook(data, hubspotStatus = 'Pending', hubspotMethod = 'Unknown') {
+async function sendToWebhook(data, mondayStatus = 'Pending', mondayMethod = 'Unknown') {
   const webhookUrl = process.env.FORM_SUBMISSION_WEBHOOK;
 
   if (!webhookUrl) {
@@ -161,9 +211,9 @@ async function sendToWebhook(data, hubspotStatus = 'Pending', hubspotMethod = 'U
       pageUrl: data.page_url || '',
       referrer: data.referrer || 'Direct',
 
-      // HubSpot Status
-      hubspotStatus: hubspotStatus,
-      hubspotMethod: hubspotMethod,
+      // Monday.com Status
+      mondayStatus: mondayStatus,
+      mondayMethod: mondayMethod,
 
       // Metadata
       timestamp: new Date().toISOString(),
@@ -271,27 +321,22 @@ exports.handler = async (event) => {
       timestamp: sanitizedData.submittedAt
     });
 
-    // Send to HubSpot (primary integration)
-    const hubspotResult = await sendToHubSpot(sanitizedData);
+    // Send to Monday.com (primary integration)
+    const mondayResult = await sendToMonday(sanitizedData);
 
-    let hubspotStatus = 'Pending';
-    let hubspotMethod = 'Unknown';
-    if (hubspotResult.success && !hubspotResult.skipped) {
-      console.log(`✓ Form data sent to HubSpot successfully (method: ${hubspotResult.method})`);
-      hubspotStatus = 'Success';
-      hubspotMethod = hubspotResult.method || 'Unknown';
-    } else if (!hubspotResult.skipped) {
-      console.warn('HubSpot submission failed, but form accepted:', hubspotResult.error);
-      // Check if it's a duplicate error
-      if (hubspotResult.error && hubspotResult.error.includes('already exists')) {
-        hubspotStatus = 'Duplicate';
-      } else {
-        hubspotStatus = hubspotResult.error || 'Error';
-      }
+    let mondayStatus = 'Pending';
+    let mondayMethod = 'Unknown';
+    if (mondayResult.success && !mondayResult.skipped) {
+      console.log(`✓ Form data sent to Monday.com successfully (method: ${mondayResult.method})`);
+      mondayStatus = 'Success';
+      mondayMethod = mondayResult.method || 'Unknown';
+    } else if (!mondayResult.skipped) {
+      console.warn('Monday.com submission failed, but form accepted:', mondayResult.error);
+      mondayStatus = mondayResult.error || 'Error';
     }
 
     // Send to webhook if configured (IMPORTANT: logs all submissions to Google Sheets)
-    const webhookResult = await sendToWebhook(sanitizedData, hubspotStatus, hubspotMethod);
+    const webhookResult = await sendToWebhook(sanitizedData, mondayStatus, mondayMethod);
 
     if (webhookResult.success && !webhookResult.skipped) {
       console.log('✓ Form data sent to webhook successfully');
