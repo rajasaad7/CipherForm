@@ -177,6 +177,96 @@ async function sendToMonday(data) {
 }
 
 /**
+ * Send form data to the CipherBC dashboard's lead-intake webhook.
+ *
+ * Auth: HMAC-SHA256 of the raw body, signed with
+ * CIPHERFORM_WEBHOOK_SECRET, sent in X-CipherBC-Signature.
+ *
+ * Idempotent: the dashboard RPC dedupes on (org, lower(email)), so a
+ * resubmit of the same email returns existed=true rather than failing.
+ *
+ * Fire-and-forget posture: errors logged, never propagated to the
+ * user. The form's success path doesn't depend on this destination.
+ */
+async function sendToCipherBc(data, mondayItemId = null) {
+  const url = process.env.CIPHERFORM_WEBHOOK_URL;
+  const secret = process.env.CIPHERFORM_WEBHOOK_SECRET;
+
+  if (!url || !secret) {
+    console.log('CipherBC webhook not configured — skipping');
+    return { success: true, skipped: true };
+  }
+
+  try {
+    // Use Node's built-in crypto on Netlify Functions (Node runtime).
+    // Browser polyfills are not needed here.
+    const crypto = require('node:crypto');
+
+    const payload = {
+      // Identity
+      firstName: data.firstName,
+      lastName: data.lastName || '',
+      fullName: [data.firstName, data.lastName].filter(Boolean).join(' '),
+      company: data.companyName || '',
+      email: data.email,
+      phone: data.phone,
+      linkedinUrl: data.linkedinUrl || '',
+      telegram: data.telegram || '',
+      productInterest: Array.isArray(data.productInterest)
+        ? data.productInterest.join(', ')
+        : (data.productInterest || ''),
+      message: data.message || '',
+
+      // Source attribution (typed, in the canonical naming the
+      // dashboard's RPC expects — utmSource not utm_source).
+      utmSource: data.utm_source || '',
+      utmMedium: data.utm_medium || '',
+      utmCampaign: data.utm_campaign || '',
+      utmTerm: data.utm_term || '',
+      utmContent: data.utm_content || '',
+      pageUrl: data.page_url || '',
+      referrer: data.referrer || '',
+
+      // Provenance
+      submittedAt: data.submittedAt || new Date().toISOString(),
+      source: 'cipherform',
+      mondayItemId: mondayItemId || ''
+    };
+
+    const rawBody = JSON.stringify(payload);
+    const signature = crypto
+      .createHmac('sha256', secret)
+      .update(rawBody)
+      .digest('hex');
+
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CipherBC-Signature': signature
+      },
+      body: rawBody
+    });
+
+    if (!response.ok) {
+      const errBody = await response.text().catch(() => '<no-body>');
+      throw new Error(`CipherBC webhook ${response.status}: ${errBody}`);
+    }
+
+    const result = await response.json().catch(() => ({}));
+    console.log(
+      '✓ Lead synced to CipherBC dashboard',
+      result.existed ? '(already existed)' : `(new id: ${result.leadId})`
+    );
+    return { success: true, leadId: result.leadId, existed: result.existed };
+  } catch (error) {
+    console.error('CipherBC webhook error:', error.message);
+    // Never fail the form submission on this branch — it's auxiliary.
+    return { success: false, error: error.message };
+  }
+}
+
+/**
  * Send form data to webhook (Google Sheets) with UTM tracking
  */
 async function sendToWebhook(data, mondayStatus = 'Pending', mondayMethod = 'Unknown') {
@@ -333,6 +423,25 @@ exports.handler = async (event) => {
     } else if (!mondayResult.skipped) {
       console.warn('Monday.com submission failed, but form accepted:', mondayResult.error);
       mondayStatus = mondayResult.error || 'Error';
+    }
+
+    // Send to CipherBC dashboard (lead lifecycle / outbound-engagement
+    // tracking). Independent of Monday — both can succeed, both can
+    // fail, and the form still returns success to the user. Each
+    // system serves a different job: Monday is the sales-ops pipeline,
+    // CipherBC is the BD outbound-engagement tracker.
+    const cipherBcResult = await sendToCipherBc(
+      sanitizedData,
+      mondayResult.itemId || null
+    );
+
+    if (cipherBcResult.success && !cipherBcResult.skipped) {
+      console.log(
+        '✓ Lead synced to CipherBC dashboard',
+        cipherBcResult.existed ? '(existing)' : `(new id: ${cipherBcResult.leadId})`
+      );
+    } else if (!cipherBcResult.skipped) {
+      console.warn('CipherBC sync failed, but form accepted:', cipherBcResult.error);
     }
 
     // Send to webhook if configured (IMPORTANT: logs all submissions to Google Sheets)
