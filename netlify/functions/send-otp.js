@@ -19,6 +19,31 @@ function isValidEmail(email) {
   return emailRegex.test(email);
 }
 
+// Free / personal email providers — blocked to keep submissions B2B-only
+const BLOCKED_EMAIL_DOMAINS = new Set([
+  'gmail.com', 'googlemail.com',
+  'yahoo.com', 'yahoo.co.uk', 'yahoo.co.in', 'yahoo.in', 'ymail.com', 'rocketmail.com',
+  'outlook.com', 'hotmail.com', 'live.com', 'msn.com', 'hotmail.co.uk', 'outlook.in',
+  'icloud.com', 'me.com', 'mac.com',
+  'aol.com',
+  'protonmail.com', 'proton.me', 'pm.me',
+  'gmx.com', 'gmx.us', 'gmx.net',
+  'mail.com', 'email.com',
+  'zoho.com',
+  'yandex.com', 'yandex.ru',
+  'qq.com', '163.com', '126.com', 'sina.com',
+  'rediffmail.com',
+  'fastmail.com', 'tutanota.com', 'hushmail.com',
+  'inbox.com', 'mail.ru'
+]);
+
+function isFreeEmailDomain(email) {
+  const at = email.lastIndexOf('@');
+  if (at === -1) return false;
+  const domain = email.slice(at + 1).toLowerCase().trim();
+  return BLOCKED_EMAIL_DOMAINS.has(domain);
+}
+
 /**
  * Normalize email (lowercase and trim)
  */
@@ -155,6 +180,17 @@ exports.handler = async (event) => {
     }
 
     const normalizedEmail = normalizeEmail(email);
+
+    // Block free / personal email providers — work email only
+    if (isFreeEmailDomain(normalizedEmail)) {
+      return {
+        statusCode: 400,
+        headers,
+        body: JSON.stringify({
+          error: 'Please use your work email. Free providers like Gmail, Outlook, and Yahoo are not accepted.'
+        })
+      };
+    }
 
     // Check rate limiting
     const rateLimitCheck = checkRateLimit(normalizedEmail);

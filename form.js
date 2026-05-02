@@ -111,6 +111,34 @@ const API_BASE = window.location.hostname === 'localhost' || window.location.hos
     ? 'http://localhost:8888/.netlify/functions'
     : '/.netlify/functions';
 
+// Free / personal email providers — blocked to keep the form B2B-only
+const BLOCKED_EMAIL_DOMAINS = new Set([
+    'gmail.com', 'googlemail.com',
+    'yahoo.com', 'yahoo.co.uk', 'yahoo.co.in', 'yahoo.in', 'ymail.com', 'rocketmail.com',
+    'outlook.com', 'hotmail.com', 'live.com', 'msn.com', 'hotmail.co.uk', 'outlook.in',
+    'icloud.com', 'me.com', 'mac.com',
+    'aol.com',
+    'protonmail.com', 'proton.me', 'pm.me',
+    'gmx.com', 'gmx.us', 'gmx.net',
+    'mail.com', 'email.com',
+    'zoho.com',
+    'yandex.com', 'yandex.ru',
+    'qq.com', '163.com', '126.com', 'sina.com',
+    'rediffmail.com',
+    'fastmail.com', 'tutanota.com', 'hushmail.com',
+    'inbox.com', 'mail.ru'
+]);
+
+function getEmailDomain(email) {
+    const at = email.lastIndexOf('@');
+    if (at === -1) return '';
+    return email.slice(at + 1).toLowerCase().trim();
+}
+
+function isFreeEmailDomain(email) {
+    return BLOCKED_EMAIL_DOMAINS.has(getEmailDomain(email));
+}
+
 // DOM Elements
 const form = document.getElementById('contact-form');
 const workEmailInput = document.getElementById('workEmail');
@@ -195,8 +223,16 @@ function startOtpTimer(expiryTimeSeconds = 300) {
 workEmailInput.addEventListener('input', () => {
     const email = workEmailInput.value.trim();
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    const formatValid = emailRegex.test(email);
+    const isFree = formatValid && isFreeEmailDomain(email);
 
-    if (emailRegex.test(email) && !state.emailVerified) {
+    if (isFree) {
+        showError('Please use your work email — free providers like Gmail, Outlook, and Yahoo are not accepted.');
+    } else {
+        hideError();
+    }
+
+    if (formatValid && !isFree && !state.emailVerified) {
         sendOtpBtn.disabled = false;
     } else {
         sendOtpBtn.disabled = true;
@@ -212,6 +248,11 @@ sendOtpBtn.addEventListener('click', async () => {
 
     if (!email) {
         showError('Please enter your email address');
+        return;
+    }
+
+    if (isFreeEmailDomain(email)) {
+        showError('Please use your work email — free providers like Gmail, Outlook, and Yahoo are not accepted.');
         return;
     }
 
