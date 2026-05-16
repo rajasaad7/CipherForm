@@ -1,7 +1,7 @@
 {
   "name": "otp-verification-form",
   "version": "1.0.0",
-  "description": "Embeddable contact form with SMS-based OTP verification using Brevo API",
+  "description": "Embeddable contact form with email-based OTP verification using TrueEmailer API",
   "main": "index.html",
   "scripts": {
     "dev": "netlify dev",
@@ -14,7 +14,7 @@
     "sms",
     "verification",
     "form",
-    "brevo",
+    "trueemailer",
     "netlify",
     "serverless",
     "embeddable"
