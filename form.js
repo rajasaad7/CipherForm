@@ -1,6 +1,7 @@
 // Global state
 const state = {
-    emailVerified: false,
+    // OTP TEMPORARILY DISABLED: email is treated as already verified so submit is always allowed
+    emailVerified: true,
     otpTimerInterval: null,
     otpExpiryTime: null,
     otpToken: null // Stores the verification token from server
@@ -111,6 +112,7 @@ const API_BASE = window.location.hostname === 'localhost' || window.location.hos
     ? 'http://localhost:8888/.netlify/functions'
     : '/.netlify/functions';
 
+/* OTP TEMPORARILY DISABLED: free-email blocking (all emails are now accepted, incl. Gmail)
 // Free / personal email providers — blocked to keep the form B2B-only
 const BLOCKED_EMAIL_DOMAINS = new Set([
     'gmail.com', 'googlemail.com',
@@ -138,16 +140,18 @@ function getEmailDomain(email) {
 function isFreeEmailDomain(email) {
     return BLOCKED_EMAIL_DOMAINS.has(getEmailDomain(email));
 }
+*/
 
 // DOM Elements
 const form = document.getElementById('contact-form');
 const workEmailInput = document.getElementById('workEmail');
-const sendOtpBtn = document.getElementById('sendOtpBtn');
-const otpVerificationRow = document.getElementById('otpVerificationRow');
-const otpCodeInput = document.getElementById('otpCode');
-const verifyOtpBtn = document.getElementById('verifyOtpBtn');
-const verificationStatus = document.getElementById('verificationStatus');
-const otpTimer = document.getElementById('otpTimer');
+// OTP TEMPORARILY DISABLED: these OTP elements no longer exist in the DOM
+// const sendOtpBtn = document.getElementById('sendOtpBtn');
+// const otpVerificationRow = document.getElementById('otpVerificationRow');
+// const otpCodeInput = document.getElementById('otpCode');
+// const verifyOtpBtn = document.getElementById('verifyOtpBtn');
+// const verificationStatus = document.getElementById('verificationStatus');
+// const otpTimer = document.getElementById('otpTimer');
 const submitBtn = document.getElementById('submitBtn');
 const formError = document.getElementById('formError');
 const successMessage = document.getElementById('successMessage');
@@ -183,9 +187,10 @@ function setButtonLoading(button, isLoading) {
     }
 }
 
+/* OTP TEMPORARILY DISABLED: countdown timer, email-validity gating, send-OTP and OTP-input handlers
 /**
  * Start OTP countdown timer
- */
+ *
 function startOtpTimer(expiryTimeSeconds = 300) {
     // Clear existing timer
     if (state.otpTimerInterval) {
@@ -219,7 +224,7 @@ function startOtpTimer(expiryTimeSeconds = 300) {
 
 /**
  * Enable/disable Send OTP button based on email validity
- */
+ *
 workEmailInput.addEventListener('input', () => {
     const email = workEmailInput.value.trim();
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -241,7 +246,7 @@ workEmailInput.addEventListener('input', () => {
 
 /**
  * Handle Send OTP
- */
+ *
 sendOtpBtn.addEventListener('click', async () => {
     hideError();
     const email = workEmailInput.value.trim();
@@ -311,10 +316,11 @@ sendOtpBtn.addEventListener('click', async () => {
 
 /**
  * Handle OTP input formatting
- */
+ *
 otpCodeInput.addEventListener('input', (e) => {
     e.target.value = e.target.value.replace(/\D/g, '');
 });
+OTP TEMPORARILY DISABLED: end */
 
 /**
  * Handle phone number input - only allow + at start and numbers
@@ -362,9 +368,10 @@ phoneNumberInput.addEventListener('keydown', (e) => {
     }
 });
 
+/* OTP TEMPORARILY DISABLED: verify-OTP handler
 /**
  * Handle Verify OTP
- */
+ *
 verifyOtpBtn.addEventListener('click', async () => {
     hideError();
     const email = workEmailInput.value.trim();
@@ -436,6 +443,7 @@ verifyOtpBtn.addEventListener('click', async () => {
         setButtonLoading(verifyOtpBtn, false);
     }
 });
+OTP TEMPORARILY DISABLED: end */
 
 /**
  * Handle Form Submission
@@ -444,11 +452,11 @@ form.addEventListener('submit', async (e) => {
     e.preventDefault();
     hideError();
 
-    // Check if email is verified
-    if (!state.emailVerified) {
-        showError('Please verify your email address first');
-        return;
-    }
+    // OTP TEMPORARILY DISABLED: email verification gate removed
+    // if (!state.emailVerified) {
+    //     showError('Please verify your email address first');
+    //     return;
+    // }
 
     // Collect form data
     const formData = new FormData(form);
@@ -574,7 +582,8 @@ submitAnotherBtn.addEventListener('click', () => {
     form.reset();
 
     // Reset state
-    state.emailVerified = false;
+    // OTP TEMPORARILY DISABLED: keep email treated as verified so submit stays enabled
+    state.emailVerified = true;
     state.otpToken = null;
     if (state.otpTimerInterval) {
         clearInterval(state.otpTimerInterval);
@@ -583,6 +592,7 @@ submitAnotherBtn.addEventListener('click', () => {
     // Reset UI
     workEmailInput.readOnly = false;
     workEmailInput.style.background = '';
+    /* OTP TEMPORARILY DISABLED: OTP UI reset no longer applies
     otpCodeInput.disabled = false;
     verifyOtpBtn.disabled = false;
     submitBtn.disabled = true;
@@ -594,6 +604,7 @@ submitAnotherBtn.addEventListener('click', () => {
     otpVerificationRow.style.display = 'none';
     verificationStatus.textContent = '';
     otpTimer.textContent = '';
+    */
 
     // Show form
     form.style.display = 'block';
