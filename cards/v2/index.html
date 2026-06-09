@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Get Your Cards Demo - CipherBC</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        :root {
+            --yellow: #F5E050;
+            --yellow-hover: #efd83a;
+            --text: #1a1a1a;
+            --text-muted: #6b7280;
+            --field-bg: #f4f4f5;
+            --field-border: #e7e7ea;
+            --error: #dc2626;
+        }
+
+        body {
+            font-family: 'Figtree', -apple-system, BlinkMacSystemFont, 'Segoe UI',
+                'Roboto', 'Helvetica Neue', Arial, sans-serif;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+            background: transparent;
+            color: var(--text);
+            line-height: 1.4;
+        }
+
+        .v2-card {
+            width: 100%;
+            max-width: 560px;
+            margin: 0 auto;
+        }
+
+        /* ===== Two-column rows ===== */
+        .v2-row {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 12px;
+        }
+        .v2-row > .v2-field {
+            flex: 1;
+            min-width: 0;
+            margin-bottom: 0;
+        }
+
+        .v2-title {
+            font-size: 24px;
+            font-weight: 800;
+            letter-spacing: -0.02em;
+            color: var(--text);
+        }
+
+        .v2-subtitle {
+            font-size: 14px;
+            color: var(--text-muted);
+            margin-top: 4px;
+            margin-bottom: 18px;
+        }
+
+        /* ===== Fields ===== */
+        .v2-field {
+            position: relative;
+            margin-bottom: 12px;
+        }
+
+        .v2-field input[type="text"],
+        .v2-field input[type="email"],
+        .v2-field input[type="tel"],
+        .v2-field textarea {
+            width: 100%;
+            padding: 16px 18px;
+            font-size: 15px;
+            font-family: inherit;
+            color: var(--text);
+            background: var(--field-bg);
+            border: 1px solid var(--field-border);
+            border-radius: 12px;
+            transition: border-color 0.15s, background 0.15s, box-shadow 0.15s;
+        }
+
+        .v2-field textarea {
+            resize: vertical;
+            min-height: 76px;
+        }
+
+        .v2-field input::placeholder,
+        .v2-field textarea::placeholder {
+            color: #9ca3af;
+        }
+
+        .v2-field input:focus,
+        .v2-field textarea:focus {
+            outline: none;
+            background: #fff;
+            border-color: var(--yellow);
+            box-shadow: 0 0 0 3px rgba(245, 224, 80, 0.35);
+        }
+
+        /* ===== Product Interest (radio block) ===== */
+        .v2-radio-block {
+            padding: 14px 18px 16px;
+            background: var(--field-bg);
+            border: 1px solid var(--field-border);
+            border-radius: 12px;
+            margin-bottom: 12px;
+        }
+
+        .v2-radio-label {
+            display: block;
+            font-family: 'Figtree', sans-serif;
+            font-weight: 500;
+            font-size: 18px;
+            color: #000000;
+            margin-bottom: 10px;
+        }
+
+        .v2-radio-row {
+            display: flex;
+            gap: 10px;
+        }
+
+        .v2-radio-option {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 11px 8px;
+            cursor: pointer;
+            font-size: 15px;
+            font-weight: 500;
+            color: var(--text);
+            background: #fff;
+            border: 1.5px solid var(--field-border);
+            border-radius: 10px;
+            user-select: none;
+            transition: border-color 0.15s, background 0.15s, box-shadow 0.15s;
+        }
+
+        .v2-radio-option:hover {
+            border-color: #d4d4d8;
+        }
+
+        /* Visually hide the native radio but keep it accessible */
+        .v2-radio-option input[type="radio"] {
+            position: absolute;
+            opacity: 0;
+            width: 0;
+            height: 0;
+            margin: 0;
+        }
+
+        /* Selected state — brand yellow pill */
+        .v2-radio-option:has(input[type="radio"]:checked) {
+            background: var(--yellow);
+            border-color: #4b5563;
+            font-weight: 700;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.18);
+        }
+
+        /* Keyboard focus ring */
+        .v2-radio-option:has(input[type="radio"]:focus-visible) {
+            box-shadow: 0 0 0 3px rgba(245, 224, 80, 0.45);
+        }
+
+        /* ===== Submit ===== */
+        .v2-submit {
+            position: relative;
+            display: block;
+            width: 100%;
+            max-width: 380px;
+            padding: 17px;
+            font-size: 16px;
+            font-weight: 700;
+            color: var(--text);
+            background: var(--yellow);
+            border: none;
+            border-radius: 999px;
+            cursor: pointer;
+            margin: 4px auto 0;
+            transition: background 0.15s, transform 0.05s;
+        }
+
+        .v2-submit:hover:not(:disabled) { background: var(--yellow-hover); }
+        .v2-submit:active:not(:disabled) { transform: translateY(1px); }
+        .v2-submit:disabled { opacity: 0.7; cursor: not-allowed; }
+        .v2-submit.loading .v2-submit-text { visibility: hidden; }
+
+        .v2-loader {
+            display: none;
+            position: absolute;
+            top: 50%; left: 50%;
+            width: 20px; height: 20px;
+            margin: -10px 0 0 -10px;
+            border: 2px solid rgba(0, 0, 0, 0.25);
+            border-top-color: var(--text);
+            border-radius: 50%;
+            animation: v2-spin 0.6s linear infinite;
+        }
+        .v2-submit.loading .v2-loader { display: block; }
+        @keyframes v2-spin { to { transform: rotate(360deg); } }
+
+        /* ===== Footer note ===== */
+        .v2-note {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 7px;
+            margin-top: 14px;
+            font-size: 13px;
+            color: var(--text-muted);
+        }
+        .v2-note svg { flex-shrink: 0; }
+
+        /* ===== Error ===== */
+        .v2-error {
+            display: none;
+            padding: 10px 14px;
+            background: #fef2f2;
+            border: 1px solid #fecaca;
+            border-radius: 10px;
+            color: var(--error);
+            font-size: 13px;
+            margin-bottom: 12px;
+        }
+
+        /* ===== Success ===== */
+        .v2-success {
+            display: none;
+            text-align: center;
+            padding: 30px 10px;
+        }
+        .v2-success h2 {
+            font-size: 22px;
+            font-weight: 800;
+            margin: 16px 0 8px;
+        }
+        .v2-success p {
+            font-size: 15px;
+            color: var(--text-muted);
+        }
+
+        @media (max-width: 480px) {
+            .v2-row { flex-direction: column; gap: 12px; }
+            .v2-row > .v2-field { margin-bottom: 0; }
+            .v2-radio-row { gap: 16px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="v2-card">
+        <form id="v2-form" novalidate>
+            <h1 class="v2-title">Get Your Cards Demo</h1>
+            <p class="v2-subtitle">4 required fields · 24h response</p>
+
+            <div class="v2-error" id="v2-error"></div>
+
+            <div class="v2-row">
+                <div class="v2-field">
+                    <input type="text" id="v2-name" name="name" placeholder="Name*" autocomplete="name" required>
+                </div>
+                <div class="v2-field">
+                    <input type="email" id="v2-email" name="email" placeholder="Work Email*" autocomplete="email" required>
+                </div>
+            </div>
+
+            <div class="v2-row">
+                <div class="v2-field">
+                    <input type="tel" id="v2-phone" name="phone" placeholder="Phone Number* (+12025551234)" autocomplete="tel" required>
+                </div>
+                <div class="v2-field">
+                    <input type="text" id="v2-telegram" name="telegram" placeholder="Telegram (@username)">
+                </div>
+            </div>
+
+            <div class="v2-field">
+                <textarea id="v2-message" name="message" placeholder="Message (optional)" maxlength="500"></textarea>
+            </div>
+
+            <div class="v2-radio-block">
+                <span class="v2-radio-label">Product Interest*</span>
+                <div class="v2-radio-row">
+                    <label class="v2-radio-option">
+                        <input type="radio" name="productInterest" value="Virtual"> Virtual
+                    </label>
+                    <label class="v2-radio-option">
+                        <input type="radio" name="productInterest" value="Physical" checked> Physical
+                    </label>
+                    <label class="v2-radio-option">
+                        <input type="radio" name="productInterest" value="Both"> Both
+                    </label>
+                </div>
+            </div>
+
+            <button type="submit" class="v2-submit" id="v2-submit">
+                <span class="v2-submit-text">Get My Cards Demo</span>
+                <span class="v2-loader"></span>
+            </button>
+
+            <div class="v2-note">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <rect x="5" y="11" width="14" height="10" rx="2" stroke="#6b7280" stroke-width="2"/>
+                    <path d="M8 11V8a4 4 0 0 1 8 0v3" stroke="#6b7280" stroke-width="2"/>
+                </svg>
+                Stays private · 24h response · No spam
+            </div>
+        </form>
+
+        <div class="v2-success" id="v2-success">
+            <svg width="56" height="56" viewBox="0 0 60 60" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <circle cx="30" cy="30" r="28" stroke="#F5E050" stroke-width="4"/>
+                <path d="M18 30L26 38L42 22" stroke="#F5E050" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+            <h2>Thank You!</h2>
+            <p>Your request has been received. We'll get back to you within 24 hours.</p>
+        </div>
+    </div>
+
+    <script src="form-v2.js"></script>
+</body>
+</html>

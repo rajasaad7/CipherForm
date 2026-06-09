@@ -5,6 +5,17 @@
 [functions]
   node_bundler = "esbuild"
 
+# Serve the compact v2 cards form and its assets before the catch-all
+[[redirects]]
+  from = "/cards/v2"
+  to = "/cards/v2/index.html"
+  status = 200
+
+[[redirects]]
+  from = "/cards/v2/*"
+  to = "/cards/v2/:splat"
+  status = 200
+
 [[redirects]]
   from = "/*"
   to = "/index.html"
