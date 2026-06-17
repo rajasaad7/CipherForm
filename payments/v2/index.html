@@ -1,0 +1,368 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Get Your Payments Demo - CipherBC</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        :root {
+            --yellow: #F5E050;
+            --yellow-hover: #efd83a;
+            --text: #1a1a1a;
+            --text-muted: #6b7280;
+            --field-bg: #f4f4f5;
+            --field-border: #e7e7ea;
+            --error: #dc2626;
+        }
+
+        body {
+            font-family: 'Figtree', -apple-system, BlinkMacSystemFont, 'Segoe UI',
+                'Roboto', 'Helvetica Neue', Arial, sans-serif;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+            background: transparent;
+            color: var(--text);
+            line-height: 1.4;
+        }
+
+        .v2-card {
+            width: 100%;
+            max-width: 560px;
+            margin: 0 auto;
+            padding-top: 40px;
+        }
+
+        /* ===== Two-column rows ===== */
+        .v2-row {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 12px;
+        }
+        .v2-row > .v2-field {
+            flex: 1;
+            min-width: 0;
+            margin-bottom: 0;
+        }
+
+        /* ===== Fields ===== */
+        .v2-field {
+            position: relative;
+            margin-bottom: 12px;
+        }
+
+        .v2-field input[type="text"],
+        .v2-field input[type="email"],
+        .v2-field input[type="tel"],
+        .v2-field textarea {
+            width: 100%;
+            padding: 16px 18px;
+            font-size: 15px;
+            font-family: inherit;
+            color: var(--text);
+            background: var(--field-bg);
+            border: 1px solid var(--field-border);
+            border-radius: 12px;
+            transition: border-color 0.15s, background 0.15s, box-shadow 0.15s;
+        }
+
+        .v2-field textarea {
+            resize: vertical;
+            min-height: 76px;
+        }
+
+        .v2-field input::placeholder,
+        .v2-field textarea::placeholder {
+            color: #9ca3af;
+        }
+
+        .v2-field input:focus,
+        .v2-field textarea:focus {
+            outline: none;
+            background: #fff;
+            border-color: var(--yellow);
+            box-shadow: 0 0 0 3px rgba(245, 224, 80, 0.35);
+        }
+
+        /* ===== Industry (custom dropdown) ===== */
+        .v2-select {
+            position: relative;
+            font-family: inherit;
+        }
+
+        .v2-select-trigger {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            width: 100%;
+            padding: 16px 18px;
+            font-size: 15px;
+            font-family: inherit;
+            text-align: left;
+            color: var(--text);
+            background: var(--field-bg);
+            border: 1px solid var(--field-border);
+            border-radius: 12px;
+            cursor: pointer;
+            transition: border-color 0.15s, background 0.15s, box-shadow 0.15s;
+        }
+
+        .v2-select-trigger:hover { border-color: #d4d4d8; }
+
+        .v2-select-trigger.is-placeholder { color: #9ca3af; }
+
+        .v2-select.open .v2-select-trigger,
+        .v2-select-trigger:focus-visible {
+            outline: none;
+            background: #fff;
+            border-color: var(--yellow);
+            box-shadow: 0 0 0 3px rgba(245, 224, 80, 0.35);
+        }
+
+        .v2-select-chevron {
+            flex-shrink: 0;
+            transition: transform 0.18s ease;
+        }
+        .v2-select.open .v2-select-chevron { transform: rotate(180deg); }
+
+        /* ===== Menu ===== */
+        .v2-select-menu {
+            position: absolute;
+            top: calc(100% + 6px);
+            left: 0;
+            right: 0;
+            z-index: 50;
+            padding: 6px;
+            background: #fff;
+            border: 1px solid var(--field-border);
+            border-radius: 12px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.12);
+            opacity: 0;
+            visibility: hidden;
+            transform: translateY(-6px) scale(0.98);
+            transform-origin: top center;
+            transition: opacity 0.16s ease, transform 0.16s ease, visibility 0.16s;
+            max-height: 280px;
+            overflow-y: auto;
+        }
+
+        .v2-select.open .v2-select-menu {
+            opacity: 1;
+            visibility: visible;
+            transform: translateY(0) scale(1);
+        }
+
+        .v2-select-option {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+            padding: 12px 14px;
+            font-size: 15px;
+            color: var(--text);
+            border-radius: 8px;
+            cursor: pointer;
+            user-select: none;
+            transition: background 0.12s;
+        }
+
+        .v2-select-option:hover,
+        .v2-select-option.active {
+            background: #f4f4f5;
+        }
+
+        .v2-select-option.selected {
+            font-weight: 600;
+            background: rgba(245, 224, 80, 0.28);
+        }
+
+        .v2-select-option .v2-check {
+            opacity: 0;
+            flex-shrink: 0;
+            color: #4b5563;
+        }
+        .v2-select-option.selected .v2-check { opacity: 1; }
+
+        /* ===== Submit ===== */
+        .v2-submit {
+            position: relative;
+            display: block;
+            width: 100%;
+            max-width: 380px;
+            padding: 17px;
+            font-size: 16px;
+            font-weight: 700;
+            color: var(--text);
+            background: var(--yellow);
+            border: none;
+            border-radius: 999px;
+            cursor: pointer;
+            margin: 4px auto 0;
+            transition: background 0.15s, transform 0.05s;
+        }
+
+        .v2-submit:hover:not(:disabled) { background: var(--yellow-hover); }
+        .v2-submit:active:not(:disabled) { transform: translateY(1px); }
+        .v2-submit:disabled { opacity: 0.7; cursor: not-allowed; }
+        .v2-submit.loading .v2-submit-text { visibility: hidden; }
+
+        .v2-loader {
+            display: none;
+            position: absolute;
+            top: 50%; left: 50%;
+            width: 20px; height: 20px;
+            margin: -10px 0 0 -10px;
+            border: 2px solid rgba(0, 0, 0, 0.25);
+            border-top-color: var(--text);
+            border-radius: 50%;
+            animation: v2-spin 0.6s linear infinite;
+        }
+        .v2-submit.loading .v2-loader { display: block; }
+        @keyframes v2-spin { to { transform: rotate(360deg); } }
+
+        /* ===== Footer note ===== */
+        .v2-note {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 7px;
+            margin-top: 14px;
+            font-size: 13px;
+            color: var(--text-muted);
+        }
+        .v2-note svg { flex-shrink: 0; }
+
+        /* ===== Error ===== */
+        .v2-error {
+            display: none;
+            padding: 10px 14px;
+            background: #fef2f2;
+            border: 1px solid #fecaca;
+            border-radius: 10px;
+            color: var(--error);
+            font-size: 13px;
+            margin-bottom: 12px;
+        }
+
+        /* ===== Success ===== */
+        .v2-success {
+            display: none;
+            text-align: center;
+            padding: 30px 10px;
+        }
+        .v2-success h2 {
+            font-size: 22px;
+            font-weight: 800;
+            margin: 16px 0 8px;
+        }
+        .v2-success p {
+            font-size: 15px;
+            color: var(--text-muted);
+        }
+
+        @media (max-width: 480px) {
+            .v2-row { flex-direction: column; gap: 12px; }
+            .v2-row > .v2-field { margin-bottom: 0; }
+            .v2-radio-row { gap: 16px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="v2-card">
+        <form id="v2-form" novalidate>
+            <div class="v2-error" id="v2-error"></div>
+
+            <div class="v2-row">
+                <div class="v2-field">
+                    <input type="text" id="v2-name" name="name" placeholder="Name*" autocomplete="name" required>
+                </div>
+                <div class="v2-field">
+                    <input type="email" id="v2-email" name="email" placeholder="Work Email*" autocomplete="email" required>
+                </div>
+            </div>
+
+            <div class="v2-row">
+                <div class="v2-field">
+                    <input type="tel" id="v2-phone" name="phone" placeholder="Phone Number* (+12025551234)" autocomplete="tel" required>
+                </div>
+                <div class="v2-field">
+                    <input type="text" id="v2-telegram" name="telegram" placeholder="Telegram (@username)">
+                </div>
+            </div>
+
+            <div class="v2-field">
+                <textarea id="v2-message" name="message" placeholder="Message (optional)" maxlength="500"></textarea>
+            </div>
+
+            <div class="v2-field">
+                <div class="v2-select" id="v2-industry">
+                    <input type="hidden" name="industry" id="v2-industry-value">
+                    <button type="button" class="v2-select-trigger is-placeholder" id="v2-industry-trigger"
+                            aria-haspopup="listbox" aria-expanded="false">
+                        <span id="v2-industry-text">Select your industry*</span>
+                        <svg class="v2-select-chevron" width="20" height="20" viewBox="0 0 24 24" fill="none"
+                             stroke="#6b7280" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <polyline points="6 9 12 15 18 9"></polyline>
+                        </svg>
+                    </button>
+                    <div class="v2-select-menu" id="v2-industry-menu" role="listbox" tabindex="-1" aria-label="Industry">
+                        <div class="v2-select-option" role="option" data-value="Forex">
+                            <span>Forex</span>
+                            <svg class="v2-check" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                        </div>
+                        <div class="v2-select-option" role="option" data-value="Exchange">
+                            <span>Exchange</span>
+                            <svg class="v2-check" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                        </div>
+                        <div class="v2-select-option" role="option" data-value="Broker">
+                            <span>Broker</span>
+                            <svg class="v2-check" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                        </div>
+                        <div class="v2-select-option" role="option" data-value="Payment Provider">
+                            <span>Payment Provider</span>
+                            <svg class="v2-check" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                        </div>
+                        <div class="v2-select-option" role="option" data-value="Crypto / OTC">
+                            <span>Crypto / OTC</span>
+                            <svg class="v2-check" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                        </div>
+                        <div class="v2-select-option" role="option" data-value="Other">
+                            <span>Other</span>
+                            <svg class="v2-check" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <button type="submit" class="v2-submit" id="v2-submit">
+                <span class="v2-submit-text">Get My Demo</span>
+                <span class="v2-loader"></span>
+            </button>
+
+            <div class="v2-note">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <rect x="5" y="11" width="14" height="10" rx="2" stroke="#6b7280" stroke-width="2"/>
+                    <path d="M8 11V8a4 4 0 0 1 8 0v3" stroke="#6b7280" stroke-width="2"/>
+                </svg>
+                Stays private · 24h response · No spam
+            </div>
+        </form>
+
+        <div class="v2-success" id="v2-success">
+            <svg width="56" height="56" viewBox="0 0 60 60" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <circle cx="30" cy="30" r="28" stroke="#F5E050" stroke-width="4"/>
+                <path d="M18 30L26 38L42 22" stroke="#F5E050" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+            <h2>Thank You!</h2>
+            <p>Your request has been received. We'll get back to you within 24 hours.</p>
+        </div>
+    </div>
+
+    <script src="/payments/v2/form-v2.js"></script>
+</body>
+</html>
