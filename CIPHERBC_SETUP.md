@@ -3,7 +3,7 @@
 The form already sends submissions to **Monday.com** (sales-ops pipeline)
 and **Google Sheets** (audit log). This third destination, the **CipherBC
 dashboard**, is the BD outbound-engagement tracker — every form submission
-becomes a lead in `app.saad.guru`'s leads pipeline so BDs can run
+becomes a lead in `crm.cipherbc.com`'s leads pipeline so BDs can run
 outreach against it and managers can track open / click / reply rates
 per lead source.
 
@@ -26,13 +26,19 @@ and update both sides simultaneously.
 **For local dev** — add to `.env`:
 
 ```
-CIPHERFORM_WEBHOOK_URL=https://app.saad.guru/api/leads/webhook
+CIPHERFORM_WEBHOOK_URL=https://crm.cipherbc.com/.netlify/functions/leads-webhook
 CIPHERFORM_WEBHOOK_SECRET=<the same secret as on the dashboard side>
 ```
 
 **For production** — Netlify dashboard → Site settings → Environment variables:
 
-- `CIPHERFORM_WEBHOOK_URL` = `https://app.saad.guru/api/leads/webhook`
+- `CIPHERFORM_WEBHOOK_URL` = `https://crm.cipherbc.com/.netlify/functions/leads-webhook`
+
+> Why not `/api/leads/webhook`? That Next.js route boots the whole
+> dashboard app on a cold start (>10s), which blows past Netlify's
+> function timeout and 502s — losing the lead. The standalone
+> `leads-webhook` function answers cold in under a second. The old
+> route still works as a fallback, but don't point production at it.
 - `CIPHERFORM_WEBHOOK_SECRET` = (paste the same secret used on the
   dashboard)
 
@@ -42,7 +48,7 @@ working, leads just don't sync). Logs will say
 
 ### 3. Test it
 
-Submit a test entry. Then in `app.saad.guru/dashboard/leads`:
+Submit a test entry. Then in `crm.cipherbc.com/dashboard/leads`:
 
 - Should appear in the list with status `new`, source `cipherform` (or
   whatever `utm_source` you submitted with).
@@ -93,9 +99,11 @@ NULL fields get filled.
   match. The form proceeds anyway (Monday + Sheets succeed).
 - **Dashboard down / unreachable** → the form's other destinations
   succeed, the user sees success, the lead is later not in CipherBC.
-  No automatic retry. If this becomes a real reliability concern,
-  the form's Google Sheets log can be replayed manually into the
-  dashboard via CSV import.
+  The form retries once (8s cap per attempt, 1.5s pause) to cover
+  transient failures; beyond that there is no queue. If a lead is
+  still missed, the form's Google Sheets log can be replayed manually
+  into the dashboard via CSV import — safe, since the dashboard
+  dedupes on email.
 - **Lead already exists** → returns 200 with `existed: true`. Not an
   error.
 

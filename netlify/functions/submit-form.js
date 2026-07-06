@@ -239,26 +239,47 @@ async function sendToCipherBc(data, mondayItemId = null) {
       .update(rawBody)
       .digest('hex');
 
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-CipherBC-Signature': signature
-      },
-      body: rawBody
-    });
+    // There is no queue behind this call — a failed sync is a lost
+    // lead until someone replays the Sheets log. The dashboard can
+    // 502 transiently (cold boot, upstream hiccup), so retry once
+    // after a short pause. Each attempt is capped at 8s so both
+    // attempts plus the pause fit inside the function's time budget.
+    let lastError;
+    for (let attempt = 1; attempt <= 2; attempt++) {
+      try {
+        const response = await fetch(url, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-CipherBC-Signature': signature
+          },
+          body: rawBody,
+          signal: AbortSignal.timeout(8000)
+        });
 
-    if (!response.ok) {
-      const errBody = await response.text().catch(() => '<no-body>');
-      throw new Error(`CipherBC webhook ${response.status}: ${errBody}`);
+        if (!response.ok) {
+          const errBody = await response.text().catch(() => '<no-body>');
+          throw new Error(`CipherBC webhook ${response.status}: ${errBody}`);
+        }
+
+        const result = await response.json().catch(() => ({}));
+        console.log(
+          '✓ Lead synced to CipherBC dashboard',
+          result.existed ? '(already existed)' : `(new id: ${result.leadId})`
+        );
+        return { success: true, leadId: result.leadId, existed: result.existed };
+      } catch (error) {
+        lastError = error;
+        console.warn(`CipherBC attempt ${attempt}/2 failed:`, error.message);
+        if (attempt < 2) {
+          await new Promise((resolve) => setTimeout(resolve, 1500));
+        }
+      }
     }
 
-    const result = await response.json().catch(() => ({}));
-    console.log(
-      '✓ Lead synced to CipherBC dashboard',
-      result.existed ? '(already existed)' : `(new id: ${result.leadId})`
-    );
-    return { success: true, leadId: result.leadId, existed: result.existed };
+    console.error('CipherBC webhook error:', lastError.message);
+    // Never fail the form submission on this branch — it's auxiliary.
+    return { success: false, error: lastError.message };
   } catch (error) {
     console.error('CipherBC webhook error:', error.message);
     // Never fail the form submission on this branch — it's auxiliary.
@@ -425,6 +446,18 @@ exports.handler = async (event) => {
       mondayStatus = mondayResult.error || 'Error';
     }
 
+    // Send to webhook if configured (IMPORTANT: logs all submissions
+    // to Google Sheets). Runs before CipherBC so the audit log is
+    // written even if the CipherBC leg runs long and the function
+    // gets cut off mid-retry.
+    const webhookResult = await sendToWebhook(sanitizedData, mondayStatus, mondayMethod);
+
+    if (webhookResult.success && !webhookResult.skipped) {
+      console.log('✓ Form data sent to webhook successfully');
+    } else if (!webhookResult.skipped) {
+      console.warn('Webhook submission failed, but form accepted');
+    }
+
     // Send to CipherBC dashboard (lead lifecycle / outbound-engagement
     // tracking). Independent of Monday — both can succeed, both can
     // fail, and the form still returns success to the user. Each
@@ -442,15 +475,6 @@ exports.handler = async (event) => {
       );
     } else if (!cipherBcResult.skipped) {
       console.warn('CipherBC sync failed, but form accepted:', cipherBcResult.error);
-    }
-
-    // Send to webhook if configured (IMPORTANT: logs all submissions to Google Sheets)
-    const webhookResult = await sendToWebhook(sanitizedData, mondayStatus, mondayMethod);
-
-    if (webhookResult.success && !webhookResult.skipped) {
-      console.log('✓ Form data sent to webhook successfully');
-    } else if (!webhookResult.skipped) {
-      console.warn('Webhook submission failed, but form accepted');
     }
 
     // Always return success to user (webhook will log all submissions for verification)
