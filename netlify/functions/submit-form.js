@@ -50,145 +50,19 @@ function validateFormData(data) {
 }
 
 /**
- * Send form data to Monday.com
- * Uses Monday.com GraphQL API to create items in a board
- * Requires MONDAY_API_TOKEN and MONDAY_BOARD_ID
- */
-async function sendToMonday(data) {
-  const mondayApiToken = process.env.MONDAY_API_TOKEN;
-  const mondayBoardId = process.env.MONDAY_BOARD_ID;
-
-  if (!mondayApiToken || !mondayBoardId) {
-    console.log('Monday.com not configured (missing MONDAY_API_TOKEN or MONDAY_BOARD_ID) - skipping Monday submission');
-    return { success: true, skipped: true };
-  }
-
-  try {
-    const mondayApiUrl = 'https://api.monday.com/v2';
-
-    // Prepare column values with fixed column IDs from board structure
-    const columnValues = {};
-
-    // Map form data to Monday.com columns using dedicated columns
-    // Based on actual board structure with new columns
-
-    // First Name & Last Name - text fields
-    columnValues['first_name__1'] = data.firstName;
-    columnValues['last_name__1'] = data.lastName || '';
-
-    // Email - text field
-    columnValues['email__1'] = data.email;
-
-    // Phone - use Phone Number text field instead of Phone type field
-    columnValues['phone_number__1'] = data.phone;
-
-    // Company - Business Type field
-    if (data.companyName) {
-      columnValues['business_type__1'] = data.companyName;
-    }
-
-    // Enquiry - user's message
-    if (data.message) {
-      columnValues['enquiry__1'] = data.message;
-    }
-
-    // LinkedIn - link column type
-    if (data.linkedinUrl) {
-      columnValues['link_mm263t0s'] = { "url": data.linkedinUrl, "text": data.linkedinUrl };
-    }
-
-    // TG/WA - text field (dedicated column)
-    if (data.telegram) {
-      columnValues['text_mm26r0dm'] = data.telegram;
-    }
-
-    // Product Interest - dedicated text column
-    if (data.productInterest && data.productInterest.length > 0) {
-      columnValues['text_mm26k1r2'] = data.productInterest.join(', ');
-    }
-
-    // UTM Tracking - dedicated UTM column
-    const utmData = [];
-    if (data.utm_source) utmData.push(`Source: ${data.utm_source}`);
-    if (data.utm_medium) utmData.push(`Medium: ${data.utm_medium}`);
-    if (data.utm_campaign) utmData.push(`Campaign: ${data.utm_campaign}`);
-    if (data.utm_term) utmData.push(`Term: ${data.utm_term}`);
-    if (data.utm_content) utmData.push(`Content: ${data.utm_content}`);
-    if (data.page_url) utmData.push(`Page: ${data.page_url}`);
-    if (data.referrer) utmData.push(`Referrer: ${data.referrer}`);
-
-    if (utmData.length > 0) {
-      columnValues['text_mm26nn2c'] = utmData.join('\n');
-    }
-
-    // Status/Stage - set to "New"
-    columnValues['status'] = { "label": "New" };
-
-    // GraphQL mutation to create item
-    const query = `mutation ($boardId: ID!, $itemName: String!, $columnValues: JSON!) {
-      create_item (
-        board_id: $boardId,
-        item_name: $itemName,
-        column_values: $columnValues
-      ) {
-        id
-      }
-    }`;
-
-    const variables = {
-      boardId: mondayBoardId,
-      itemName: `${data.firstName} ${data.lastName || ''} - ${data.email}`,
-      columnValues: JSON.stringify(columnValues)
-    };
-
-    const response = await fetch(mondayApiUrl, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': mondayApiToken
-      },
-      body: JSON.stringify({
-        query,
-        variables
-      })
-    });
-
-    if (!response.ok) {
-      throw new Error(`Monday.com API error: ${response.status}`);
-    }
-
-    const result = await response.json();
-
-    if (result.errors) {
-      throw new Error(`Monday.com GraphQL error: ${JSON.stringify(result.errors)}`);
-    }
-
-    console.log('✓ Lead created in Monday.com successfully:', result.data.create_item.id);
-    return { success: true, method: 'monday-api', itemId: result.data.create_item.id };
-
-  } catch (error) {
-    console.error('Monday.com API error:', error);
-
-    return {
-      success: false,
-      error: 'Failed to create lead in Monday.com. Please try again later or contact support.'
-    };
-  }
-}
-
-/**
- * Send form data to the CipherBC dashboard's lead-intake webhook.
+ * Send form data to the CipherBC CRM's lead-intake webhook.
+ * This is the source of truth for leads.
  *
  * Auth: HMAC-SHA256 of the raw body, signed with
  * CIPHERFORM_WEBHOOK_SECRET, sent in X-CipherBC-Signature.
  *
- * Idempotent: the dashboard RPC dedupes on (org, lower(email)), so a
+ * Idempotent: the CRM RPC dedupes on (org, lower(email)), so a
  * resubmit of the same email returns existed=true rather than failing.
  *
  * Fire-and-forget posture: errors logged, never propagated to the
  * user. The form's success path doesn't depend on this destination.
  */
-async function sendToCipherBc(data, mondayItemId = null) {
+async function sendToCipherBc(data) {
   const url = process.env.CIPHERFORM_WEBHOOK_URL;
   const secret = process.env.CIPHERFORM_WEBHOOK_SECRET;
 
@@ -218,7 +92,7 @@ async function sendToCipherBc(data, mondayItemId = null) {
       message: data.message || '',
 
       // Source attribution (typed, in the canonical naming the
-      // dashboard's RPC expects — utmSource not utm_source).
+      // CRM's RPC expects — utmSource not utm_source).
       utmSource: data.utm_source || '',
       utmMedium: data.utm_medium || '',
       utmCampaign: data.utm_campaign || '',
@@ -229,8 +103,7 @@ async function sendToCipherBc(data, mondayItemId = null) {
 
       // Provenance
       submittedAt: data.submittedAt || new Date().toISOString(),
-      source: 'cipherform',
-      mondayItemId: mondayItemId || ''
+      source: 'cipherform'
     };
 
     const rawBody = JSON.stringify(payload);
@@ -240,7 +113,7 @@ async function sendToCipherBc(data, mondayItemId = null) {
       .digest('hex');
 
     // There is no queue behind this call — a failed sync is a lost
-    // lead until someone replays the Sheets log. The dashboard can
+    // lead until someone replays the Sheets log. The CRM can
     // 502 transiently (cold boot, upstream hiccup), so retry once
     // after a short pause. Each attempt is capped at 8s so both
     // attempts plus the pause fit inside the function's time budget.
@@ -264,7 +137,7 @@ async function sendToCipherBc(data, mondayItemId = null) {
 
         const result = await response.json().catch(() => ({}));
         console.log(
-          '✓ Lead synced to CipherBC dashboard',
+          '✓ Lead synced to CipherBC CRM',
           result.existed ? '(already existed)' : `(new id: ${result.leadId})`
         );
         return { success: true, leadId: result.leadId, existed: result.existed };
@@ -290,7 +163,7 @@ async function sendToCipherBc(data, mondayItemId = null) {
 /**
  * Send form data to webhook (Google Sheets) with UTM tracking
  */
-async function sendToWebhook(data, mondayStatus = 'Pending', mondayMethod = 'Unknown') {
+async function sendToWebhook(data) {
   const webhookUrl = process.env.FORM_SUBMISSION_WEBHOOK;
 
   if (!webhookUrl) {
@@ -322,10 +195,6 @@ async function sendToWebhook(data, mondayStatus = 'Pending', mondayMethod = 'Unk
       pageUrl: data.page_url || '',
       referrer: data.referrer || 'Direct',
 
-      // Monday.com Status
-      mondayStatus: mondayStatus,
-      mondayMethod: mondayMethod,
-
       // Metadata
       timestamp: new Date().toISOString(),
       source: 'otp-form'
@@ -348,6 +217,197 @@ async function sendToWebhook(data, mondayStatus = 'Pending', mondayMethod = 'Unk
   } catch (error) {
     console.error('Webhook error:', error);
     // Don't fail the form submission if webhook fails
+    return { success: false, error: error.message };
+  }
+}
+
+/**
+ * Lark card text is "lark_md". Strip angle brackets so user input can't
+ * inject <at> / <a> tags, and collapse whitespace so the card stays tidy.
+ */
+function larkText(value, max = 600) {
+  const text = String(value == null ? '' : value)
+    .replace(/[<>]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+  if (!text) return '—';
+  return text.length > max ? `${text.slice(0, max - 1)}…` : text;
+}
+
+/**
+ * Notify the BD team in Lark that a new lead has been recorded.
+ *
+ * Uses a Lark group "custom bot" incoming webhook. Set
+ * LARK_WEBHOOK_URL (required) and LARK_WEBHOOK_SECRET (only if the bot
+ * was created with "Signature verification" turned on).
+ *
+ * Fires after the CipherBC CRM sync so the card can deep-link to the
+ * lead. If the CRM sync failed, the card still goes out but carries a
+ * warning so nobody assumes the lead is in the pipeline.
+ *
+ * Fire-and-forget: errors logged, never propagated to the user.
+ */
+async function sendToLark(data, crmResult) {
+  const webhookUrl = process.env.LARK_WEBHOOK_URL;
+  const secret = process.env.LARK_WEBHOOK_SECRET;
+
+  if (!webhookUrl) {
+    console.log('Lark webhook not configured (missing LARK_WEBHOOK_URL) — skipping');
+    return { success: true, skipped: true };
+  }
+
+  try {
+    const fullName = [data.firstName, data.lastName].filter(Boolean).join(' ');
+    const company = data.companyName || '';
+    const products = Array.isArray(data.productInterest)
+      ? data.productInterest.join(', ')
+      : (data.productInterest || '');
+
+    // CRM deep link — base derived from the CRM webhook URL so
+    // staging/prod point at the right dashboard automatically.
+    let crmLeadUrl = '';
+    if (crmResult && crmResult.leadId) {
+      let base = 'https://crm.cipherbc.com';
+      try {
+        base = new URL(process.env.CIPHERFORM_WEBHOOK_URL).origin;
+      } catch (_) {
+        // keep default
+      }
+      crmLeadUrl = `${base}/dashboard/leads/${crmResult.leadId}`;
+    }
+
+    // Header colour + status line reflect what actually happened in the CRM.
+    let template = 'green';
+    let statusLine = '';
+    if (!crmResult || crmResult.skipped) {
+      template = 'orange';
+      statusLine = '⚠️ CRM sync is not configured on this deployment — lead is only in the Sheets log.';
+    } else if (!crmResult.success) {
+      template = 'red';
+      statusLine = `🚨 **CRM sync failed** — lead is NOT in the CRM yet. Replay it from the Sheets log. (${larkText(crmResult.error, 160)})`;
+    } else if (crmResult.existed) {
+      template = 'blue';
+      statusLine = '🔁 This email already existed in the CRM — treat as a repeat enquiry from an existing lead.';
+    }
+
+    const utm = [];
+    if (data.utm_source) utm.push(`source=${data.utm_source}`);
+    if (data.utm_medium) utm.push(`medium=${data.utm_medium}`);
+    if (data.utm_campaign) utm.push(`campaign=${data.utm_campaign}`);
+    if (data.utm_term) utm.push(`term=${data.utm_term}`);
+    if (data.utm_content) utm.push(`content=${data.utm_content}`);
+
+    const field = (label, value) => ({
+      is_short: true,
+      text: { tag: 'lark_md', content: `**${label}**\n${larkText(value, 200)}` }
+    });
+
+    const elements = [
+      {
+        tag: 'div',
+        fields: [
+          field('Name', fullName),
+          field('Company', company),
+          field('Email', data.email),
+          field('Phone', data.phone),
+          field('Telegram / WhatsApp', data.telegram),
+          field('LinkedIn', data.linkedinUrl)
+        ]
+      },
+      {
+        tag: 'div',
+        text: { tag: 'lark_md', content: `**Product interest**\n${larkText(products, 300)}` }
+      },
+      {
+        tag: 'div',
+        text: { tag: 'lark_md', content: `**Enquiry**\n${larkText(data.message, 800)}` }
+      },
+      {
+        tag: 'note',
+        elements: [
+          {
+            tag: 'plain_text',
+            content: [
+              `Page: ${larkText(data.page_url, 160)}`,
+              `Referrer: ${larkText(data.referrer, 120)}`,
+              utm.length ? `UTM: ${larkText(utm.join(' · '), 240)}` : null,
+              `Submitted: ${data.submittedAt || new Date().toISOString()}`
+            ].filter(Boolean).join('\n')
+          }
+        ]
+      }
+    ];
+
+    if (statusLine) {
+      elements.unshift({ tag: 'div', text: { tag: 'lark_md', content: statusLine } });
+    }
+
+    if (crmLeadUrl) {
+      elements.push({
+        tag: 'action',
+        actions: [
+          {
+            tag: 'button',
+            type: 'primary',
+            text: { tag: 'plain_text', content: 'Open lead in CRM' },
+            url: crmLeadUrl
+          }
+        ]
+      });
+    }
+
+    // @everyone in the group so every BD gets pinged.
+    elements.push({
+      tag: 'div',
+      text: { tag: 'lark_md', content: '<at id=all></at> new lead — please pick it up.' }
+    });
+
+    const title = `🆕 New lead: ${larkText(fullName, 60)}${company ? ` · ${larkText(company, 60)}` : ''}`;
+
+    const body = {
+      msg_type: 'interactive',
+      card: {
+        config: { wide_screen_mode: true },
+        header: {
+          template,
+          title: { tag: 'plain_text', content: title }
+        },
+        elements
+      }
+    };
+
+    // Optional signature verification (Lark custom bot "Signature verification").
+    // sign = base64( HMAC-SHA256( key = "<timestamp>\n<secret>", msg = "" ) )
+    if (secret) {
+      const crypto = require('node:crypto');
+      const timestamp = Math.floor(Date.now() / 1000).toString();
+      body.timestamp = timestamp;
+      body.sign = crypto
+        .createHmac('sha256', `${timestamp}\n${secret}`)
+        .update('')
+        .digest('base64');
+    }
+
+    const response = await fetch(webhookUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+      signal: AbortSignal.timeout(6000)
+    });
+
+    const result = await response.json().catch(() => ({}));
+
+    // New-style bots answer {code:0,msg:"success"}; legacy ones {StatusCode:0}.
+    const code = result.code ?? result.StatusCode;
+    if (!response.ok || (code !== undefined && code !== 0)) {
+      throw new Error(`Lark webhook ${response.status}: ${JSON.stringify(result)}`);
+    }
+
+    console.log('✓ BD team notified in Lark');
+    return { success: true };
+  } catch (error) {
+    console.error('Lark notification error:', error.message);
+    // Never fail the form submission on this branch — it's auxiliary.
     return { success: false, error: error.message };
   }
 }
@@ -411,7 +471,7 @@ exports.handler = async (event) => {
       message: formData.message ? formData.message.trim() : '',
       submittedAt: new Date().toISOString(),
 
-      // UTM tracking parameters (for Google Sheets only)
+      // UTM tracking parameters
       utm_source: formData.utm_source || '',
       utm_medium: formData.utm_medium || '',
       utm_campaign: formData.utm_campaign || '',
@@ -421,7 +481,6 @@ exports.handler = async (event) => {
       referrer: formData.referrer || 'Direct'
     };
 
-    // Log submission (in production, save to database)
     console.log('Form submission received:', {
       firstName: sanitizedData.firstName,
       lastName: sanitizedData.lastName,
@@ -432,25 +491,10 @@ exports.handler = async (event) => {
       timestamp: sanitizedData.submittedAt
     });
 
-    // Send to Monday.com (primary integration)
-    const mondayResult = await sendToMonday(sanitizedData);
-
-    let mondayStatus = 'Pending';
-    let mondayMethod = 'Unknown';
-    if (mondayResult.success && !mondayResult.skipped) {
-      console.log(`✓ Form data sent to Monday.com successfully (method: ${mondayResult.method})`);
-      mondayStatus = 'Success';
-      mondayMethod = mondayResult.method || 'Unknown';
-    } else if (!mondayResult.skipped) {
-      console.warn('Monday.com submission failed, but form accepted:', mondayResult.error);
-      mondayStatus = mondayResult.error || 'Error';
-    }
-
-    // Send to webhook if configured (IMPORTANT: logs all submissions
-    // to Google Sheets). Runs before CipherBC so the audit log is
-    // written even if the CipherBC leg runs long and the function
-    // gets cut off mid-retry.
-    const webhookResult = await sendToWebhook(sanitizedData, mondayStatus, mondayMethod);
+    // 1. Audit log to Google Sheets. Runs first so the log is written
+    //    even if the CRM leg runs long and the function gets cut off
+    //    mid-retry.
+    const webhookResult = await sendToWebhook(sanitizedData);
 
     if (webhookResult.success && !webhookResult.skipped) {
       console.log('✓ Form data sent to webhook successfully');
@@ -458,26 +502,26 @@ exports.handler = async (event) => {
       console.warn('Webhook submission failed, but form accepted');
     }
 
-    // Send to CipherBC dashboard (lead lifecycle / outbound-engagement
-    // tracking). Independent of Monday — both can succeed, both can
-    // fail, and the form still returns success to the user. Each
-    // system serves a different job: Monday is the sales-ops pipeline,
-    // CipherBC is the BD outbound-engagement tracker.
-    const cipherBcResult = await sendToCipherBc(
-      sanitizedData,
-      mondayResult.itemId || null
-    );
+    // 2. Record the lead in the CipherBC CRM — the source of truth.
+    const cipherBcResult = await sendToCipherBc(sanitizedData);
 
     if (cipherBcResult.success && !cipherBcResult.skipped) {
       console.log(
-        '✓ Lead synced to CipherBC dashboard',
+        '✓ Lead recorded in CipherBC CRM',
         cipherBcResult.existed ? '(existing)' : `(new id: ${cipherBcResult.leadId})`
       );
     } else if (!cipherBcResult.skipped) {
       console.warn('CipherBC sync failed, but form accepted:', cipherBcResult.error);
     }
 
-    // Always return success to user (webhook will log all submissions for verification)
+    // 3. Ping the BD team in Lark now that the lead is recorded.
+    const larkResult = await sendToLark(sanitizedData, cipherBcResult);
+
+    if (!larkResult.success) {
+      console.warn('Lark notification failed, but form accepted:', larkResult.error);
+    }
+
+    // Always return success to user (Sheets log records every submission for verification)
     return {
       statusCode: 200,
       headers,

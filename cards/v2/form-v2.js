@@ -2,8 +2,8 @@
  * CipherBC "Get Your Cards Demo" — compact inline form (/cards/v2)
  *
  * Submits to the same /.netlify/functions/submit-form endpoint as the
- * main form, so leads fan out to Monday.com, the CipherBC dashboard
- * webhook, and the Google Sheets webhook with UTM tracking.
+ * main form, so leads fan out to the CipherBC CRM (source of truth),
+ * the Lark BD group notification, and the Google Sheets audit log.
  */
 
 // ===== API base (mirrors form.js) =====

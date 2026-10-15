@@ -1,13 +1,13 @@
 # CipherBC dashboard integration
 
-The form already sends submissions to **Monday.com** (sales-ops pipeline)
-and **Google Sheets** (audit log). This third destination, the **CipherBC
-dashboard**, is the BD outbound-engagement tracker — every form submission
-becomes a lead in `crm.cipherbc.com`'s leads pipeline so BDs can run
-outreach against it and managers can track open / click / reply rates
-per lead source.
+The **CipherBC CRM** (`crm.cipherbc.com`) is the source of truth for
+leads — every form submission becomes a lead in its pipeline so BDs can
+run outreach against it and managers can track open / click / reply
+rates per lead source. **Google Sheets** keeps an audit log of every
+submission attempt, and **Lark** pings the BD group once the lead is
+recorded (see `LARK_SETUP.md`).
 
-The three destinations are independent: any one can fail without breaking
+The destinations are independent: any one can fail without breaking
 the others or the user-visible form.
 
 ## Setup
@@ -78,8 +78,7 @@ Submit a test entry. Then in `crm.cipherbc.com/dashboard/leads`:
   "pageUrl": "https://www.cipherbc.com/card/schedule-a-demo",
   "referrer": "https://www.google.com/",
   "submittedAt": "2026-02-11T21:01:45.375Z",
-  "source": "cipherform",
-  "mondayItemId": "8123456789"
+  "source": "cipherform"
 }
 ```
 
@@ -96,7 +95,8 @@ NULL fields get filled.
 ## Failure modes
 
 - **Bad signature** → dashboard returns 401. Means the secrets don't
-  match. The form proceeds anyway (Monday + Sheets succeed).
+  match. The form proceeds anyway (Sheets + Lark still run; the Lark
+  card is flagged red so BDs know the lead is not in the CRM).
 - **Dashboard down / unreachable** → the form's other destinations
   succeed, the user sees success, the lead is later not in CipherBC.
   The form retries once (8s cap per attempt, 1.5s pause) to cover
@@ -107,12 +107,12 @@ NULL fields get filled.
 - **Lead already exists** → returns 200 with `existed: true`. Not an
   error.
 
-## Why three destinations
+## Destinations
 
 | Destination | Purpose |
 |---|---|
-| Monday.com | Sales pipeline / qualification ops |
-| Google Sheets | Audit log of every submission attempt |
-| CipherBC dashboard | BD outbound-engagement tracking + ad-source attribution analytics |
+| CipherBC CRM | Source of truth: lead pipeline, BD outbound-engagement tracking, ad-source attribution |
+| Google Sheets | Audit log of every submission attempt (replay source if the CRM sync fails) |
+| Lark BD group | Real-time "new lead" ping with a deep link to the CRM record |
 
-They serve different jobs. None replaces the others.
+Monday.com was removed in October 2026; the CRM replaced it.

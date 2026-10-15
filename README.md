@@ -1,11 +1,11 @@
 # OTP Verification Form - Embeddable & Secure
 
-A production-ready, embeddable contact form with SMS-based OTP verification using Brevo SMS API. Built with vanilla JavaScript and Netlify Functions for seamless serverless deployment.
+A production-ready, embeddable contact form with email-based OTP verification using the TrueEmailer API. Built with vanilla JavaScript and Netlify Functions for seamless serverless deployment.
 
 ## Features
 
-- ✅ **4-Step Verification Flow**: Phone → OTP → Form → Success
-- 🔒 **Secure OTP Verification**: 6-digit codes sent via Brevo SMS
+- ✅ **4-Step Verification Flow**: Email → OTP → Form → Success
+- 🔒 **Secure OTP Verification**: 6-digit codes sent to the work email via TrueEmailer
 - ⏱️ **Auto-Expiring OTPs**: 5-minute validity with countdown timer
 - 🚫 **Rate Limiting**: Max 3 OTP attempts per hour per phone
 - 📱 **Fully Responsive**: Works on desktop, tablet, and mobile
@@ -13,8 +13,9 @@ A production-ready, embeddable contact form with SMS-based OTP verification usin
 - 🔌 **Easy Embedding**: Single-line integration for any website
 - ⚡ **Serverless**: Powered by Netlify Functions (no server needed)
 - 🔄 **Resend OTP**: Built-in resend functionality
-- 🎯 **HubSpot Integration**: Automatic CRM sync (Forms API or Contacts API)
-- 📊 **Webhook Support**: Send submissions to external services
+- 🎯 **CipherBC CRM Sync**: Every lead lands in the CRM (source of truth)
+- 🔔 **Lark Alerts**: BD group gets a card with a CRM deep link for each new lead
+- 📊 **Google Sheets Audit Log**: Every submission attempt is logged
 
 ## Live Demo
 
@@ -23,8 +24,8 @@ A production-ready, embeddable contact form with SMS-based OTP verification usin
 ## Table of Contents
 
 - [Quick Start](#quick-start)
-- [Getting Brevo API Key](#getting-brevo-api-key)
-- [HubSpot Integration Setup](#hubspot-integration-setup)
+- [Getting a TrueEmailer API Key](#getting-a-trueemailer-api-key)
+- [Lead Destinations](#lead-destinations)
 - [Local Development](#local-development)
 - [Deployment to Netlify](#deployment-to-netlify)
 - [Embedding the Form](#embedding-the-form)
@@ -44,7 +45,7 @@ A production-ready, embeddable contact form with SMS-based OTP verification usin
 
 - Node.js 14+ and npm
 - A [Netlify](https://netlify.com) account (free tier works)
-- A [Brevo](https://brevo.com) account with SMS credits
+- A [TrueEmailer](https://app.trueemailer.com) account with a verified sender
 
 ### Installation
 
@@ -66,11 +67,12 @@ npm install -g netlify-cli
 cp .env.example .env
 ```
 
-4. **Add your Brevo API key to `.env`**
+4. **Add your TrueEmailer credentials to `.env`**
 
 ```env
-BREVO_API_KEY=your_actual_brevo_api_key_here
-BREVO_SENDER=YourAppName
+TRUEEMAILER_API_KEY=your_actual_api_key_here
+TRUEEMAILER_SENDER=CipherBC
+TRUEEMAILER_SENDER_EMAIL=noreply@cipherbc.com
 ```
 
 5. **Test locally**
@@ -83,73 +85,26 @@ Visit `http://localhost:8888` to test the form.
 
 ---
 
-## Getting Brevo API Key
+## Getting a TrueEmailer API Key
 
-### Step 1: Create Brevo Account
-
-1. Go to [Brevo.com](https://www.brevo.com) (formerly Sendinblue)
-2. Sign up for a free account
-3. Verify your email address
-
-### Step 2: Get SMS Credits
-
-1. Navigate to **Transactional SMS** in the dashboard
-2. Purchase SMS credits (pay-as-you-go available)
-3. Add credit to your account
-
-### Step 3: Generate API Key
-
-1. Go to **Settings** → **API Keys**
-2. Click **Generate a new API key**
-3. Name it (e.g., "OTP Form Production")
-4. Copy the API key immediately (you won't see it again)
-5. Paste it into your `.env` file
-
-### Step 4: Configure Sender Name
-
-1. Go to **Transactional SMS** → **Senders**
-2. Add and verify your sender name/number
-3. Use this name in `BREVO_SENDER` environment variable
-
-**Important Notes:**
-- Free accounts get 20 SMS credits for testing
-- Production requires purchasing credits
-- Some countries require sender verification
-- Test with your own phone number first
+1. Log in to [TrueEmailer](https://app.trueemailer.com)
+2. Verify the sender address you'll send OTPs from (e.g. `noreply@cipherbc.com`)
+3. Go to **API / Webhooks** and generate an API key
+4. Put the key, sender name and sender address into `.env` as
+   `TRUEEMAILER_API_KEY`, `TRUEEMAILER_SENDER`, `TRUEEMAILER_SENDER_EMAIL`
 
 ---
 
-## HubSpot Integration Setup
+## Lead Destinations
 
-Form submissions are automatically sent to HubSpot CRM. **Choose ONE method:**
+After OTP verification, `submit-form` fans each lead out to three places.
+Any one can fail without breaking the others or the user-visible form.
 
-### Method 1: HubSpot Forms API (Recommended - Easiest)
-
-**No API key required!** Just need Portal ID and Form GUID.
-
-1. **Get Portal ID**: Settings → Account Setup → Hub ID
-2. **Create Form**: Marketing → Forms → Create embedded form
-3. **Add Fields**: firstname, lastname, email, phone, message
-4. **Get Form GUID**: From form editor URL
-5. **Add to `.env`**:
-   ```env
-   HUBSPOT_PORTAL_ID=your_portal_id
-   HUBSPOT_FORM_GUID=your_form_guid
-   ```
-
-### Method 2: HubSpot Contacts API (Alternative)
-
-**Requires Private App Access Token**
-
-1. **Create Private App**: Settings → Integrations → Private Apps
-2. **Set Scopes**: `crm.objects.contacts.write` + `crm.objects.contacts.read`
-3. **Copy Access Token**
-4. **Add to `.env`**:
-   ```env
-   HUBSPOT_ACCESS_TOKEN=pat-na1-xxxxxxxx
-   ```
-
-📖 **[Complete HubSpot Setup Guide →](./HUBSPOT_SETUP.md)**
+| Destination | Purpose | Setup guide |
+|---|---|---|
+| CipherBC CRM | Source of truth for leads | [CIPHERBC_SETUP.md](./CIPHERBC_SETUP.md) |
+| Lark BD group | Real-time "new lead" card with CRM deep link | [LARK_SETUP.md](./LARK_SETUP.md) |
+| Google Sheets | Audit log / replay source | `FORM_SUBMISSION_WEBHOOK` |
 
 ---
 
@@ -178,7 +133,7 @@ This starts:
 - Check terminal for function logs
 - Function outputs include OTP codes in development (remove in production!)
 
-**Test Mode**: For testing without sending real SMS, you can temporarily modify `send-otp.js` to log the OTP instead of calling Brevo API.
+**Test Mode**: For testing without sending real emails, you can temporarily modify `send-otp.js` to log the OTP instead of calling the TrueEmailer API.
 
 ---
 
@@ -207,8 +162,9 @@ Follow the prompts:
 3. **Set environment variables**
 
 ```bash
-netlify env:set BREVO_API_KEY "your_api_key_here"
-netlify env:set BREVO_SENDER "YourAppName"
+netlify env:set TRUEEMAILER_API_KEY "your_api_key_here"
+netlify env:set TRUEEMAILER_SENDER "CipherBC"
+netlify env:set TRUEEMAILER_SENDER_EMAIL "noreply@cipherbc.com"
 ```
 
 4. **Deploy**
@@ -235,7 +191,7 @@ Your site is live! Copy the URL (e.g., `https://your-site.netlify.app`)
 
 1. Drag and drop your project folder to [netlify.com/drop](https://app.netlify.com/drop)
 2. After deployment, go to **Site settings** → **Environment variables**
-3. Add your `BREVO_API_KEY` and `BREVO_SENDER`
+3. Add your `TRUEEMAILER_API_KEY`, `TRUEEMAILER_SENDER` and `TRUEEMAILER_SENDER_EMAIL`
 4. Trigger a redeploy
 
 ---
@@ -290,22 +246,23 @@ https://your-site.netlify.app
 Create a `.env` file in the root directory:
 
 ```env
-# Required: Your Brevo API key
-BREVO_API_KEY=xkeysib-xxxxxxxxxxxxxxxxxxxxx
+# Required: TrueEmailer API key (OTP emails)
+TRUEEMAILER_API_KEY=your_api_key_here
 
-# Required: Sender name (must be configured in Brevo)
-BREVO_SENDER=YourAppName
+# Required: Sender name and verified sender address in TrueEmailer
+TRUEEMAILER_SENDER=CipherBC
+TRUEEMAILER_SENDER_EMAIL=noreply@cipherbc.com
 
-# HubSpot Integration (Choose ONE method)
-# Method 1: HubSpot Forms API (Recommended)
-HUBSPOT_PORTAL_ID=your_portal_id
-HUBSPOT_FORM_GUID=your_form_guid
+# CipherBC CRM lead-intake webhook (see CIPHERBC_SETUP.md)
+CIPHERFORM_WEBHOOK_URL=https://crm.cipherbc.com/.netlify/functions/leads-webhook
+CIPHERFORM_WEBHOOK_SECRET=shared_hmac_secret
 
-# Method 2: HubSpot Contacts API (Alternative)
-# HUBSPOT_ACCESS_TOKEN=pat-na1-xxxxxxxx
+# Lark BD group custom-bot webhook (see LARK_SETUP.md)
+LARK_WEBHOOK_URL=https://open.larksuite.com/open-apis/bot/v2/hook/xxxxxxxx
+LARK_WEBHOOK_SECRET=            # only if Signature verification is enabled
 
-# Optional: Webhook to send form submissions (backup/secondary)
-FORM_SUBMISSION_WEBHOOK=https://your-webhook.com/endpoint
+# Google Sheets audit log (Apps Script web app URL)
+FORM_SUBMISSION_WEBHOOK=https://script.google.com/macros/s/xxxxxxxx/exec
 ```
 
 ### Setting Environment Variables on Netlify
@@ -337,7 +294,7 @@ CipheForm/
 ├── README.md               # This file
 └── netlify/
     └── functions/
-        ├── send-otp.js     # Generate & send OTP via Brevo
+        ├── send-otp.js     # Generate & send OTP via TrueEmailer
         ├── verify-otp.js   # Verify OTP code
         └── submit-form.js  # Handle final form submission
 ```
@@ -517,30 +474,25 @@ const message = `Your verification code is ${otp}. Expires in 5 minutes.`;
 
 ## Troubleshooting
 
-### SMS Not Received
+### OTP Email Not Received
 
-1. **Check Phone Number Format**
-   - Must include country code (e.g., `+1` for US)
-   - No spaces or special characters
+1. **Check the Email Address**
+   - Must be a work email; free providers (Gmail, Outlook, Yahoo, ...) are rejected
+   - Check the spam folder
 
-2. **Verify Brevo Credits**
-   - Log into Brevo dashboard
-   - Check SMS credits balance
+2. **Check TrueEmailer Sender Configuration**
+   - Ensure `TRUEEMAILER_SENDER_EMAIL` is a verified sender in TrueEmailer
 
-3. **Check Brevo Sender Configuration**
-   - Ensure sender name is verified
-   - Some countries require pre-approval
-
-4. **Review Function Logs**
+3. **Review Function Logs**
    ```bash
    netlify functions:log send-otp
    ```
 
-### "Failed to Send SMS" Error
+### "Failed to send email" Error
 
-- **Check API Key**: Ensure `BREVO_API_KEY` is correct
-- **Check Brevo Status**: Visit [Brevo Status Page](https://status.brevo.com)
-- **Review Rate Limits**: Brevo has API rate limits
+- **Check API Key**: Ensure `TRUEEMAILER_API_KEY` is correct
+- **Timeout**: `send-otp` aborts if TrueEmailer takes longer than 8s
+- **Review Rate Limits**: max 3 OTP requests per hour per email
 
 ### OTP Not Verified
 
@@ -604,7 +556,7 @@ MIT License - feel free to use this project commercially or personally.
 ## Credits
 
 - **Built by:** [Your Name]
-- **SMS Provider:** [Brevo](https://www.brevo.com)
+- **Email Provider:** [TrueEmailer](https://app.trueemailer.com)
 - **Hosting:** [Netlify](https://www.netlify.com)
 
 ---
@@ -613,7 +565,6 @@ MIT License - feel free to use this project commercially or personally.
 
 For issues and questions:
 - Check the [Troubleshooting](#troubleshooting) section
-- Review [Brevo Documentation](https://developers.brevo.com/docs)
 - Check [Netlify Functions Docs](https://docs.netlify.com/functions/overview/)
 
 ---
