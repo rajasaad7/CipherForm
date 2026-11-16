@@ -294,6 +294,9 @@
             </div>
         </form>
 
+        <!-- Email OTP step (rendered by /otp-step.js; replaces the form while verifying) -->
+        <div id="v2-otp"></div>
+
         <div class="v2-success" id="v2-success">
             <svg width="56" height="56" viewBox="0 0 60 60" fill="none" xmlns="http://www.w3.org/2000/svg">
                 <circle cx="30" cy="30" r="28" stroke="#F5E050" stroke-width="4"/>
@@ -304,6 +307,7 @@
         </div>
     </div>
 
+    <script src="/otp-step.js"></script>
     <script src="form-v2.js"></script>
 </body>
 </html>

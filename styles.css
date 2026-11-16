@@ -198,6 +198,19 @@ textarea {
     color: var(--text-secondary);
 }
 
+.btn-change-email {
+    display: inline-block;
+    margin-top: 6px;
+    padding: 0;
+    font-size: 13px;
+    font-family: inherit;
+    color: var(--text-secondary);
+    background: none;
+    border: none;
+    text-decoration: underline;
+    cursor: pointer;
+}
+
 /* ===== Checkboxes ===== */
 .checkbox-group {
     display: flex;

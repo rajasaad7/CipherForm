@@ -4,6 +4,10 @@
  * Submits to the same /.netlify/functions/submit-form endpoint as the
  * main form, so leads fan out to the CipherBC CRM (source of truth),
  * the Lark BD group notification, and the Google Sheets audit log.
+ *
+ * The email must pass OTP verification first (see /otp-step.js):
+ * pressing submit emails a code, and the lead is only sent once the
+ * code has been confirmed.
  */
 
 // ===== API base (mirrors form.js) =====
@@ -174,7 +178,17 @@ phoneInput.addEventListener('input', (e) => {
     }
 });
 
-// ===== Submit =====
+// ===== Email OTP step =====
+// Holds the validated lead while the visitor confirms their email.
+let pendingLead = null;
+const otpStep = createOtpStep({
+    apiBase: API_BASE,
+    form: form,
+    mount: document.getElementById('v2-otp'),
+    onVerified: (verificationToken) => submitLead(pendingLead, verificationToken)
+});
+
+// ===== Submit: validate, then verify the email before sending the lead =====
 form.addEventListener('submit', async (e) => {
     e.preventDefault();
     hideError();
@@ -233,42 +247,51 @@ form.addEventListener('submit', async (e) => {
     setLoading(true);
 
     try {
-        const response = await fetch(`${API_BASE}/submit-form`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(data)
-        });
-        const result = await response.json();
-        if (!response.ok) {
-            throw new Error(result.error || 'Failed to submit form');
-        }
-
-        // Determine redirect URL based on page URL (mirrors form.js exactly)
-        let redirectUrl = 'https://www.cipherbc.com/cards/contact-success'; // Default
-        let pageUrl;
-        if (window.top !== window.self) {
-            const urlParams = new URLSearchParams(window.location.search);
-            pageUrl = urlParams.get('parent_url') || document.referrer || data.page_url || '';
-        } else {
-            pageUrl = window.location.href;
-        }
-        if (pageUrl.includes('/custody/')) {
-            redirectUrl = 'https://www.cipherbc.com/custody/contact-success';
-        } else if (pageUrl.includes('/cards/')) {
-            redirectUrl = 'https://www.cipherbc.com/cards/contact-success';
-        }
-
-        if (window.top !== window.self) {
-            window.top.location.href = redirectUrl;
-        } else {
-            window.location.href = redirectUrl;
-        }
+        pendingLead = data;
+        await otpStep.start(data.email);
     } catch (error) {
-        console.error('Submit error:', error);
+        console.error('Email verification error:', error);
         showError(error.message || 'Something went wrong. Please try again.');
+    } finally {
         setLoading(false);
     }
 });
+
+// ===== Send the verified lead (called by the OTP step) =====
+async function submitLead(data, verificationToken) {
+    const response = await fetch(`${API_BASE}/submit-form`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...data, verificationToken })
+    });
+    const result = await response.json();
+    if (!response.ok) {
+        const submitError = new Error(result.error || 'Failed to submit form');
+        submitError.code = result.code;
+        throw submitError;
+    }
+
+    // Determine redirect URL based on page URL (mirrors form.js exactly)
+    let redirectUrl = 'https://www.cipherbc.com/cards/contact-success'; // Default
+    let pageUrl;
+    if (window.top !== window.self) {
+        const urlParams = new URLSearchParams(window.location.search);
+        pageUrl = urlParams.get('parent_url') || document.referrer || data.page_url || '';
+    } else {
+        pageUrl = window.location.href;
+    }
+    if (pageUrl.includes('/custody/')) {
+        redirectUrl = 'https://www.cipherbc.com/custody/contact-success';
+    } else if (pageUrl.includes('/cards/')) {
+        redirectUrl = 'https://www.cipherbc.com/cards/contact-success';
+    }
+
+    if (window.top !== window.self) {
+        window.top.location.href = redirectUrl;
+    } else {
+        window.location.href = redirectUrl;
+    }
+}
 
 // ===== Init =====
 storeUtmParameters();

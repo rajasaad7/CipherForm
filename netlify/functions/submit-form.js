@@ -1,3 +1,5 @@
+const { checkVerifiedToken } = require('./otp-storage');
+
 /**
  * Validate email format
  */
@@ -439,9 +441,12 @@ exports.handler = async (event) => {
   }
 
   try {
-    const formData = JSON.parse(event.body);
+    const formData = JSON.parse(event.body || '{}');
 
-    console.log('Received form data:', formData);
+    console.log('Received form data:', {
+      ...formData,
+      verificationToken: formData.verificationToken ? '[present]' : '[missing]'
+    });
 
     // Validate form data
     const validation = validateFormData(formData);
@@ -454,6 +459,25 @@ exports.handler = async (event) => {
         body: JSON.stringify({
           error: 'Validation failed: ' + validation.errors.join(', '),
           errors: validation.errors
+        })
+      };
+    }
+
+    // Spam gate: the email must have been verified by OTP. verify-otp
+    // hands the browser a signed proof for that address; without a
+    // valid one nothing is logged, synced or announced.
+    const verification = checkVerifiedToken(formData.verificationToken, formData.email);
+
+    if (!verification.valid) {
+      console.warn('Rejected unverified submission for:', formData.email);
+      return {
+        statusCode: 403,
+        headers,
+        body: JSON.stringify({
+          error: verification.expired
+            ? 'Your email verification has expired. Please verify your email again.'
+            : 'Please verify your email address before submitting.',
+          code: 'EMAIL_NOT_VERIFIED'
         })
       };
     }

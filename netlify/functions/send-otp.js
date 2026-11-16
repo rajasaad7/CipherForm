@@ -1,15 +1,8 @@
 // Use stateless HMAC-based OTP storage
-const { createOTPToken, checkRateLimit } = require('./otp-storage');
+const { createOTPToken, checkRateLimit, generateOTP, normalizeEmail } = require('./otp-storage');
 
 // Configuration
 const OTP_EXPIRY_MS = 5 * 60 * 1000; // 5 minutes
-
-/**
- * Generate a random 6-digit OTP
- */
-function generateOTP() {
-  return Math.floor(100000 + Math.random() * 900000).toString();
-}
 
 /**
  * Validate email format
@@ -19,7 +12,10 @@ function isValidEmail(email) {
   return emailRegex.test(email);
 }
 
-// Free / personal email providers — blocked to keep submissions B2B-only
+// Free / personal email providers. Only blocked when
+// BLOCK_FREE_EMAIL_DOMAINS=true (work-email-only mode); by default every
+// address is accepted as long as its owner can prove access with the OTP.
+const BLOCK_FREE_EMAIL_DOMAINS = process.env.BLOCK_FREE_EMAIL_DOMAINS === 'true';
 const BLOCKED_EMAIL_DOMAINS = new Set([
   'gmail.com', 'googlemail.com',
   'yahoo.com', 'yahoo.co.uk', 'yahoo.co.in', 'yahoo.in', 'ymail.com', 'rocketmail.com',
@@ -42,13 +38,6 @@ function isFreeEmailDomain(email) {
   if (at === -1) return false;
   const domain = email.slice(at + 1).toLowerCase().trim();
   return BLOCKED_EMAIL_DOMAINS.has(domain);
-}
-
-/**
- * Normalize email (lowercase and trim)
- */
-function normalizeEmail(email) {
-  return email.trim().toLowerCase();
 }
 
 /**
@@ -180,10 +169,10 @@ exports.handler = async (event) => {
   }
 
   try {
-    const { email } = JSON.parse(event.body);
+    const { email } = JSON.parse(event.body || '{}');
 
     // Validate email
-    if (!email || !isValidEmail(email)) {
+    if (typeof email !== 'string' || !isValidEmail(email.trim())) {
       return {
         statusCode: 400,
         headers,
@@ -195,8 +184,8 @@ exports.handler = async (event) => {
 
     const normalizedEmail = normalizeEmail(email);
 
-    // Block free / personal email providers — work email only
-    if (isFreeEmailDomain(normalizedEmail)) {
+    // Optional work-email-only mode
+    if (BLOCK_FREE_EMAIL_DOMAINS && isFreeEmailDomain(normalizedEmail)) {
       return {
         statusCode: 400,
         headers,
@@ -207,7 +196,9 @@ exports.handler = async (event) => {
     }
 
     // Check rate limiting
-    const rateLimitCheck = checkRateLimit(normalizedEmail);
+    const clientIp = event.headers['x-nf-client-connection-ip']
+      || (event.headers['x-forwarded-for'] || '').split(',')[0].trim();
+    const rateLimitCheck = checkRateLimit(normalizedEmail, clientIp);
     if (!rateLimitCheck.allowed) {
       return {
         statusCode: 429,
@@ -220,7 +211,8 @@ exports.handler = async (event) => {
     const otp = generateOTP();
     const expiresAt = Date.now() + OTP_EXPIRY_MS;
 
-    // Create signed token (stateless - no storage needed)
+    // Create signed token (stateless - no storage needed). The token
+    // does not contain the code; only the email does.
     const token = createOTPToken(normalizedEmail, otp, expiresAt);
 
     // Send Email via TrueEmailer
@@ -228,6 +220,12 @@ exports.handler = async (event) => {
       await sendEmail(normalizedEmail, otp);
 
       console.log(`OTP sent to ${normalizedEmail} (expires at ${new Date(expiresAt).toISOString()})`);
+
+      // Local `netlify dev` only: print the code so the flow can be tested
+      // without waiting on the inbox. Never logged in production.
+      if (process.env.NETLIFY_DEV === 'true') {
+        console.log(`[dev] OTP for ${normalizedEmail}: ${otp}`);
+      }
 
       return {
         statusCode: 200,

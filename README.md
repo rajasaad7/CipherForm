@@ -253,6 +253,14 @@ TRUEEMAILER_API_KEY=your_api_key_here
 TRUEEMAILER_SENDER=CipherBC
 TRUEEMAILER_SENDER_EMAIL=noreply@cipherbc.com
 
+# Optional: secret used to sign OTP / verification tokens.
+# If unset, one is derived from TRUEEMAILER_API_KEY.
+OTP_SECRET=
+
+# Optional: set to "true" to reject free providers (Gmail, Outlook, Yahoo...)
+# and accept work emails only. Default: all emails accepted.
+BLOCK_FREE_EMAIL_DOMAINS=false
+
 # CipherBC CRM lead-intake webhook (see CIPHERBC_SETUP.md)
 CIPHERFORM_WEBHOOK_URL=https://crm.cipherbc.com/.netlify/functions/leads-webhook
 CIPHERFORM_WEBHOOK_SECRET=shared_hmac_secret
@@ -337,8 +345,9 @@ CipheForm/
 **Request:**
 ```json
 {
-  "phone": "+1234567890",
-  "otp": "123456"
+  "email": "jane@company.com",
+  "otp": "123456",
+  "token": "<token returned by send-otp>"
 }
 ```
 
@@ -347,7 +356,8 @@ CipheForm/
 {
   "success": true,
   "valid": true,
-  "message": "OTP verified successfully"
+  "message": "OTP verified successfully",
+  "verificationToken": "<send this with submit-form>"
 }
 ```
 
@@ -360,6 +370,11 @@ CipheForm/
 ```
 
 ### 3. Submit Form
+
+`submit-form` only accepts a lead whose body includes the `verificationToken`
+issued by `verify-otp` for the same email. Anything else is rejected with
+`403` and `"code": "EMAIL_NOT_VERIFIED"` before it reaches Sheets, the CRM or Lark.
+This applies to all three forms (`/`, `/cards/v2`, `/payments/v2`).
 
 **Endpoint:** `POST /.netlify/functions/submit-form`
 

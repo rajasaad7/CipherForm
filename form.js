@@ -1,10 +1,10 @@
 // Global state
 const state = {
-    // OTP TEMPORARILY DISABLED: email is treated as already verified so submit is always allowed
-    emailVerified: true,
+    emailVerified: false,
     otpTimerInterval: null,
     otpExpiryTime: null,
-    otpToken: null // Stores the verification token from server
+    otpToken: null, // Pairs with the emailed code (from send-otp)
+    verificationToken: null // Proof of verification (from verify-otp), sent with the lead
 };
 
 /**
@@ -112,46 +112,16 @@ const API_BASE = window.location.hostname === 'localhost' || window.location.hos
     ? 'http://localhost:8888/.netlify/functions'
     : '/.netlify/functions';
 
-/* OTP TEMPORARILY DISABLED: free-email blocking (all emails are now accepted, incl. Gmail)
-// Free / personal email providers — blocked to keep the form B2B-only
-const BLOCKED_EMAIL_DOMAINS = new Set([
-    'gmail.com', 'googlemail.com',
-    'yahoo.com', 'yahoo.co.uk', 'yahoo.co.in', 'yahoo.in', 'ymail.com', 'rocketmail.com',
-    'outlook.com', 'hotmail.com', 'live.com', 'msn.com', 'hotmail.co.uk', 'outlook.in',
-    'icloud.com', 'me.com', 'mac.com',
-    'aol.com',
-    'protonmail.com', 'proton.me', 'pm.me',
-    'gmx.com', 'gmx.us', 'gmx.net',
-    'mail.com', 'email.com',
-    'zoho.com',
-    'yandex.com', 'yandex.ru',
-    'qq.com', '163.com', '126.com', 'sina.com',
-    'rediffmail.com',
-    'fastmail.com', 'tutanota.com', 'hushmail.com',
-    'inbox.com', 'mail.ru'
-]);
-
-function getEmailDomain(email) {
-    const at = email.lastIndexOf('@');
-    if (at === -1) return '';
-    return email.slice(at + 1).toLowerCase().trim();
-}
-
-function isFreeEmailDomain(email) {
-    return BLOCKED_EMAIL_DOMAINS.has(getEmailDomain(email));
-}
-*/
-
 // DOM Elements
 const form = document.getElementById('contact-form');
 const workEmailInput = document.getElementById('workEmail');
-// OTP TEMPORARILY DISABLED: these OTP elements no longer exist in the DOM
-// const sendOtpBtn = document.getElementById('sendOtpBtn');
-// const otpVerificationRow = document.getElementById('otpVerificationRow');
-// const otpCodeInput = document.getElementById('otpCode');
-// const verifyOtpBtn = document.getElementById('verifyOtpBtn');
-// const verificationStatus = document.getElementById('verificationStatus');
-// const otpTimer = document.getElementById('otpTimer');
+const sendOtpBtn = document.getElementById('sendOtpBtn');
+const otpVerificationRow = document.getElementById('otpVerificationRow');
+const otpCodeInput = document.getElementById('otpCode');
+const verifyOtpBtn = document.getElementById('verifyOtpBtn');
+const verificationStatus = document.getElementById('verificationStatus');
+const otpTimer = document.getElementById('otpTimer');
+const changeEmailBtn = document.getElementById('changeEmailBtn');
 const submitBtn = document.getElementById('submitBtn');
 const formError = document.getElementById('formError');
 const successMessage = document.getElementById('successMessage');
@@ -187,10 +157,12 @@ function setButtonLoading(button, isLoading) {
     }
 }
 
-/* OTP TEMPORARILY DISABLED: countdown timer, email-validity gating, send-OTP and OTP-input handlers
+// Seconds before another code can be requested
+const RESEND_COOLDOWN_SECONDS = 30;
+
 /**
- * Start OTP countdown timer
- *
+ * Start the OTP countdown: code expiry + resend cooldown
+ */
 function startOtpTimer(expiryTimeSeconds = 300) {
     // Clear existing timer
     if (state.otpTimerInterval) {
@@ -198,20 +170,26 @@ function startOtpTimer(expiryTimeSeconds = 300) {
     }
 
     state.otpExpiryTime = Date.now() + (expiryTimeSeconds * 1000);
+    const resendAt = Date.now() + (RESEND_COOLDOWN_SECONDS * 1000);
 
-    // Disable send OTP button during timer
     sendOtpBtn.disabled = true;
 
-    state.otpTimerInterval = setInterval(() => {
-        const remainingMs = state.otpExpiryTime - Date.now();
+    const tick = () => {
+        const now = Date.now();
+        const remainingMs = state.otpExpiryTime - now;
+        const resendInMs = resendAt - now;
+
+        if (resendInMs > 0) {
+            sendOtpBtn.textContent = `Resend in ${Math.ceil(resendInMs / 1000)}s`;
+        } else {
+            sendOtpBtn.textContent = 'Resend OTP';
+            sendOtpBtn.disabled = false;
+        }
 
         if (remainingMs <= 0) {
             clearInterval(state.otpTimerInterval);
             otpTimer.textContent = 'Code expired. Please resend.';
             otpTimer.style.color = '#ef4444';
-            sendOtpBtn.textContent = 'Resend OTP';
-            sendOtpBtn.disabled = false;
-            sendOtpBtn.style.background = '';
             return;
         }
 
@@ -219,45 +197,65 @@ function startOtpTimer(expiryTimeSeconds = 300) {
         const seconds = Math.floor((remainingMs % 60000) / 1000);
         otpTimer.textContent = `Code expires in ${minutes}:${seconds.toString().padStart(2, '0')}`;
         otpTimer.style.color = remainingMs < 60000 ? '#ef4444' : '#6b7280';
-    }, 1000);
+    };
+
+    tick();
+    state.otpTimerInterval = setInterval(tick, 1000);
 }
 
 /**
  * Enable/disable Send OTP button based on email validity
- *
-workEmailInput.addEventListener('input', () => {
-    const email = workEmailInput.value.trim();
+ */
+function updateSendOtpButton() {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    const formatValid = emailRegex.test(email);
-    const isFree = formatValid && isFreeEmailDomain(email);
+    const formatValid = emailRegex.test(workEmailInput.value.trim());
+    sendOtpBtn.disabled = !(formatValid && !state.emailVerified);
+}
 
-    if (isFree) {
-        showError('Please use your work email — free providers like Gmail, Outlook, and Yahoo are not accepted.');
-    } else {
-        hideError();
-    }
-
-    if (formatValid && !isFree && !state.emailVerified) {
-        sendOtpBtn.disabled = false;
-    } else {
-        sendOtpBtn.disabled = true;
-    }
-});
+workEmailInput.addEventListener('input', updateSendOtpButton);
 
 /**
- * Handle Send OTP
- *
+ * Put the email + OTP fields back to their unverified starting state
+ */
+function resetEmailVerification() {
+    if (state.otpTimerInterval) {
+        clearInterval(state.otpTimerInterval);
+    }
+
+    state.emailVerified = false;
+    state.otpToken = null;
+    state.verificationToken = null;
+
+    workEmailInput.readOnly = false;
+    workEmailInput.style.background = '';
+
+    otpVerificationRow.style.display = 'none';
+    otpCodeInput.value = '';
+    otpCodeInput.disabled = false;
+    verifyOtpBtn.classList.remove('loading');
+    verifyOtpBtn.disabled = false;
+    verifyOtpBtn.textContent = 'Verify';
+    verifyOtpBtn.style.background = '';
+    verificationStatus.textContent = '';
+    verificationStatus.className = 'verification-status';
+    otpTimer.textContent = '';
+
+    sendOtpBtn.classList.remove('loading');
+    sendOtpBtn.textContent = 'Send OTP';
+    updateSendOtpButton();
+
+    submitBtn.disabled = true;
+}
+
+/**
+ * Handle Send OTP (and Resend OTP)
+ */
 sendOtpBtn.addEventListener('click', async () => {
     hideError();
     const email = workEmailInput.value.trim();
 
     if (!email) {
         showError('Please enter your email address');
-        return;
-    }
-
-    if (isFreeEmailDomain(email)) {
-        showError('Please use your work email — free providers like Gmail, Outlook, and Yahoo are not accepted.');
         return;
     }
 
@@ -276,25 +274,21 @@ sendOtpBtn.addEventListener('click', async () => {
             throw new Error(data.error || 'Failed to send OTP');
         }
 
-        console.log('OTP sent successfully:', data);
-
-        // Store verification token
+        // Store the token that pairs with the emailed code
         state.otpToken = data.token;
-
-        // Disable send button immediately to prevent multiple clicks
-        sendOtpBtn.disabled = true;
 
         // Show OTP verification field
         otpVerificationRow.style.display = 'flex';
+        otpCodeInput.value = '';
 
-        // Start timer (will keep button disabled)
-        startOtpTimer(data.expiresIn || 300);
-
-        // Make email input readonly (not disabled, so FormData still includes it)
+        // Lock the email (readonly, not disabled, so FormData still includes it)
         workEmailInput.readOnly = true;
         workEmailInput.style.background = '#f3f4f6';
-        sendOtpBtn.textContent = 'OTP Sent!';
-        sendOtpBtn.style.background = '#d1d5db'; // Dull gray when disabled
+
+        // Remove the spinner, then start the timer (keeps the button
+        // disabled until the resend cooldown passes)
+        sendOtpBtn.classList.remove('loading');
+        startOtpTimer(data.expiresIn || 300);
 
         // Focus OTP input
         otpCodeInput.focus();
@@ -302,9 +296,6 @@ sendOtpBtn.addEventListener('click', async () => {
         // Show success message
         verificationStatus.innerHTML = '✓ OTP sent to your email';
         verificationStatus.className = 'verification-status verified';
-
-        // Remove loading state but keep disabled
-        sendOtpBtn.classList.remove('loading');
 
     } catch (error) {
         console.error('Send OTP error:', error);
@@ -316,11 +307,10 @@ sendOtpBtn.addEventListener('click', async () => {
 
 /**
  * Handle OTP input formatting
- *
+ */
 otpCodeInput.addEventListener('input', (e) => {
     e.target.value = e.target.value.replace(/\D/g, '');
 });
-OTP TEMPORARILY DISABLED: end */
 
 /**
  * Handle phone number input - only allow + at start and numbers
@@ -368,10 +358,9 @@ phoneNumberInput.addEventListener('keydown', (e) => {
     }
 });
 
-/* OTP TEMPORARILY DISABLED: verify-OTP handler
 /**
  * Handle Verify OTP
- *
+ */
 verifyOtpBtn.addEventListener('click', async () => {
     hideError();
     const email = workEmailInput.value.trim();
@@ -383,14 +372,13 @@ verifyOtpBtn.addEventListener('click', async () => {
         return;
     }
 
-    setButtonLoading(verifyOtpBtn, true);
-
     if (!state.otpToken) {
         verificationStatus.textContent = 'No verification token. Please request a new OTP.';
         verificationStatus.className = 'verification-status error';
-        setButtonLoading(verifyOtpBtn, false);
         return;
     }
+
+    setButtonLoading(verifyOtpBtn, true);
 
     try {
         const response = await fetch(`${API_BASE}/verify-otp`, {
@@ -405,8 +393,6 @@ verifyOtpBtn.addEventListener('click', async () => {
             throw new Error(data.error || 'Invalid OTP');
         }
 
-        console.log('OTP verified successfully:', data);
-
         // Clear timer
         if (state.otpTimerInterval) {
             clearInterval(state.otpTimerInterval);
@@ -414,6 +400,7 @@ verifyOtpBtn.addEventListener('click', async () => {
 
         // Update state
         state.emailVerified = true;
+        state.verificationToken = data.verificationToken;
 
         // Show success with green tick icon
         verificationStatus.innerHTML = `
@@ -427,10 +414,13 @@ verifyOtpBtn.addEventListener('click', async () => {
         otpTimer.textContent = '';
 
         // Disable OTP fields
+        verifyOtpBtn.classList.remove('loading');
         otpCodeInput.disabled = true;
         verifyOtpBtn.disabled = true;
         verifyOtpBtn.style.background = '#FFE066';
         verifyOtpBtn.textContent = 'Verified';
+        sendOtpBtn.disabled = true;
+        sendOtpBtn.textContent = 'Verified';
 
         // Enable submit button
         submitBtn.disabled = false;
@@ -439,11 +429,28 @@ verifyOtpBtn.addEventListener('click', async () => {
         console.error('Verify OTP error:', error);
         verificationStatus.textContent = error.message;
         verificationStatus.className = 'verification-status error';
-    } finally {
         setButtonLoading(verifyOtpBtn, false);
     }
 });
-OTP TEMPORARILY DISABLED: end */
+
+/**
+ * Enter in the OTP field verifies the code
+ */
+otpCodeInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+        e.preventDefault();
+        verifyOtpBtn.click();
+    }
+});
+
+/**
+ * Let the user correct a mistyped email (drops any verification in progress)
+ */
+changeEmailBtn.addEventListener('click', () => {
+    hideError();
+    resetEmailVerification();
+    workEmailInput.focus();
+});
 
 /**
  * Handle Form Submission
@@ -452,11 +459,10 @@ form.addEventListener('submit', async (e) => {
     e.preventDefault();
     hideError();
 
-    // OTP TEMPORARILY DISABLED: email verification gate removed
-    // if (!state.emailVerified) {
-    //     showError('Please verify your email address first');
-    //     return;
-    // }
+    if (!state.emailVerified) {
+        showError('Please verify your email address first');
+        return;
+    }
 
     // Collect form data
     const formData = new FormData(form);
@@ -480,6 +486,7 @@ form.addEventListener('submit', async (e) => {
         telegram: formData.get('telegram'),
         productInterest: productInterest,
         message: formData.get('message'),
+        verificationToken: state.verificationToken, // Proof the email passed OTP (checked server-side)
         ...trackingData // Include UTM params and tracking data
     };
 
@@ -527,7 +534,9 @@ form.addEventListener('submit', async (e) => {
         const result = await response.json();
 
         if (!response.ok) {
-            throw new Error(result.error || 'Failed to submit form');
+            const submitError = new Error(result.error || 'Failed to submit form');
+            submitError.code = result.code;
+            throw submitError;
         }
 
         console.log('Form submitted successfully:', result);
@@ -568,9 +577,14 @@ form.addEventListener('submit', async (e) => {
 
     } catch (error) {
         console.error('Submit form error:', error);
+        // Server no longer accepts our proof of verification — start over
+        if (error.code === 'EMAIL_NOT_VERIFIED') {
+            resetEmailVerification();
+        }
         showError(error.message);
     } finally {
         setButtonLoading(submitBtn, false);
+        submitBtn.disabled = !state.emailVerified;
     }
 });
 
@@ -581,30 +595,8 @@ submitAnotherBtn.addEventListener('click', () => {
     // Reset form
     form.reset();
 
-    // Reset state
-    // OTP TEMPORARILY DISABLED: keep email treated as verified so submit stays enabled
-    state.emailVerified = true;
-    state.otpToken = null;
-    if (state.otpTimerInterval) {
-        clearInterval(state.otpTimerInterval);
-    }
-
-    // Reset UI
-    workEmailInput.readOnly = false;
-    workEmailInput.style.background = '';
-    /* OTP TEMPORARILY DISABLED: OTP UI reset no longer applies
-    otpCodeInput.disabled = false;
-    verifyOtpBtn.disabled = false;
-    submitBtn.disabled = true;
-    sendOtpBtn.disabled = true;
-    sendOtpBtn.textContent = 'Send OTP';
-    sendOtpBtn.style.background = '';
-    verifyOtpBtn.textContent = 'Verify';
-    verifyOtpBtn.style.background = '';
-    otpVerificationRow.style.display = 'none';
-    verificationStatus.textContent = '';
-    otpTimer.textContent = '';
-    */
+    // Reset state + OTP UI: the next submission must verify its email again
+    resetEmailVerification();
 
     // Show form
     form.style.display = 'block';

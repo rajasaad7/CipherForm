@@ -1,60 +1,5 @@
 // Use stateless HMAC-based OTP verification
-const { verifyOTPToken } = require('./otp-storage');
-
-/**
- * Normalize email (lowercase and trim)
- */
-function normalizeEmail(email) {
-  return email.trim().toLowerCase();
-}
-
-/**
- * Verify OTP using signed token
- */
-function verifyOTP(email, inputOTP, token) {
-  const normalizedEmail = normalizeEmail(email);
-
-  // Verify token signature
-  const tokenResult = verifyOTPToken(token);
-
-  if (!tokenResult.valid) {
-    return {
-      valid: false,
-      message: 'Invalid or tampered verification token. Please request a new OTP.'
-    };
-  }
-
-  const { email: tokenEmail, otp: tokenOTP, expiresAt } = tokenResult.data;
-
-  // Check email matches
-  if (normalizeEmail(tokenEmail) !== normalizedEmail) {
-    return {
-      valid: false,
-      message: 'Email mismatch. Please use the same email you requested OTP for.'
-    };
-  }
-
-  // Check expiry
-  if (Date.now() > expiresAt) {
-    return {
-      valid: false,
-      message: 'OTP has expired. Please request a new OTP.'
-    };
-  }
-
-  // Check OTP match
-  if (tokenOTP !== inputOTP) {
-    return {
-      valid: false,
-      message: 'Invalid OTP. Please check and try again.'
-    };
-  }
-
-  return {
-    valid: true,
-    message: 'OTP verified successfully'
-  };
-}
+const { verifyOTPToken, createVerifiedToken } = require('./otp-storage');
 
 /**
  * Netlify Function Handler
@@ -83,10 +28,11 @@ exports.handler = async (event) => {
   }
 
   try {
-    const { email, otp, token } = JSON.parse(event.body);
+    const { email, otp, token } = JSON.parse(event.body || '{}');
 
     // Validate input
-    if (!email || !otp || !token) {
+    if (typeof email !== 'string' || typeof otp !== 'string' || typeof token !== 'string'
+        || !email || !otp || !token) {
       return {
         statusCode: 400,
         headers,
@@ -108,7 +54,7 @@ exports.handler = async (event) => {
     }
 
     // Verify OTP using token
-    const result = verifyOTP(email, otp, token);
+    const result = verifyOTPToken(token, email, otp);
 
     if (!result.valid) {
       return {
@@ -121,7 +67,7 @@ exports.handler = async (event) => {
       };
     }
 
-    console.log(`OTP verified successfully for ${normalizeEmail(email)}`);
+    console.log(`OTP verified successfully for ${result.email}`);
 
     return {
       statusCode: 200,
@@ -129,7 +75,9 @@ exports.handler = async (event) => {
       body: JSON.stringify({
         success: true,
         valid: true,
-        message: result.message
+        message: 'OTP verified successfully',
+        // Proof of verification — submit-form requires this with the lead
+        verificationToken: createVerifiedToken(result.email)
       })
     };
 
