@@ -124,6 +124,9 @@
                     <span class="btn-text">Submit</span>
                     <span class="btn-loader"></span>
                 </button>
+
+                <!-- Filled in by /recaptcha.js when reCAPTCHA is enabled -->
+                <p class="recaptcha-notice" data-recaptcha-notice></p>
             </form>
 
             <!-- Success Message (Hidden Initially) -->
@@ -143,6 +146,7 @@
         </div>
     </div>
 
+    <script src="/recaptcha.js"></script>
     <script src="form.js"></script>
 </body>
 </html>

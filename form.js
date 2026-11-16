@@ -265,7 +265,7 @@ sendOtpBtn.addEventListener('click', async () => {
         const response = await fetch(`${API_BASE}/send-otp`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ email })
+            body: JSON.stringify({ email, recaptchaToken: await getRecaptchaToken('send_otp') })
         });
 
         const data = await response.json();

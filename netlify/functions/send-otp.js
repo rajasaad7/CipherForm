@@ -1,5 +1,6 @@
 // Use stateless HMAC-based OTP storage
 const { createOTPToken, checkRateLimit, generateOTP, normalizeEmail } = require('./otp-storage');
+const { verifyRecaptcha } = require('./recaptcha');
 
 // Configuration
 const OTP_EXPIRY_MS = 5 * 60 * 1000; // 5 minutes
@@ -169,7 +170,7 @@ exports.handler = async (event) => {
   }
 
   try {
-    const { email } = JSON.parse(event.body || '{}');
+    const { email, recaptchaToken } = JSON.parse(event.body || '{}');
 
     // Validate email
     if (typeof email !== 'string' || !isValidEmail(email.trim())) {
@@ -198,6 +199,17 @@ exports.handler = async (event) => {
     // Check rate limiting
     const clientIp = event.headers['x-nf-client-connection-ip']
       || (event.headers['x-forwarded-for'] || '').split(',')[0].trim();
+
+    // Bot check (reCAPTCHA v3) before any email is sent. Every form has
+    // to pass through here, since no lead is accepted without an OTP.
+    const captcha = await verifyRecaptcha(recaptchaToken, 'send_otp', clientIp);
+    if (!captcha.ok) {
+      return {
+        statusCode: 403,
+        headers,
+        body: JSON.stringify({ error: captcha.message, code: 'CAPTCHA_FAILED' })
+      };
+    }
     const rateLimitCheck = checkRateLimit(normalizedEmail, clientIp);
     if (!rateLimitCheck.allowed) {
       return {

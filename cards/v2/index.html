@@ -292,6 +292,9 @@
                 </svg>
                 Stays private · 24h response · No spam
             </div>
+
+            <!-- Filled in by /recaptcha.js when reCAPTCHA is enabled -->
+            <p class="recaptcha-notice" data-recaptcha-notice></p>
         </form>
 
         <!-- Email OTP step (rendered by /otp-step.js; replaces the form while verifying) -->
@@ -307,6 +310,7 @@
         </div>
     </div>
 
+    <script src="/recaptcha.js"></script>
     <script src="/otp-step.js"></script>
     <script src="form-v2.js"></script>
 </body>

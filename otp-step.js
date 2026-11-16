@@ -117,7 +117,10 @@
             const response = await fetch(`${apiBase}/send-otp`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ email: targetEmail })
+                body: JSON.stringify({
+                    email: targetEmail,
+                    recaptchaToken: await window.getRecaptchaToken('send_otp')
+                })
             });
             const data = await response.json().catch(() => ({}));
             if (!response.ok) {

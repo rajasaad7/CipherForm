@@ -257,6 +257,14 @@ TRUEEMAILER_SENDER_EMAIL=noreply@cipherbc.com
 # If unset, one is derived from TRUEEMAILER_API_KEY.
 OTP_SECRET=
 
+# Google reCAPTCHA v3 (bot check before an OTP email is sent).
+# Leave both empty to disable. Register form.cipherbc.com (and localhost
+# for local testing) as domains in the reCAPTCHA admin console.
+RECAPTCHA_SITE_KEY=
+RECAPTCHA_SECRET_KEY=
+# Optional: minimum score to accept, 0.0-1.0 (default 0.5)
+RECAPTCHA_MIN_SCORE=0.5
+
 # Optional: set to "true" to reject free providers (Gmail, Outlook, Yahoo...)
 # and accept work emails only. Default: all emails accepted.
 BLOCK_FREE_EMAIL_DOMAINS=false
